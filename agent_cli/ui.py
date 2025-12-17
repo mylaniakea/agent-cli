@@ -534,14 +534,9 @@ class InteractiveSession:
         top_border = make_border("╭", "╮")
         bottom_border_str = make_border("╰", "╯")
 
+
         # Print top border using Rich
         self.ui.console.print(f"[{border_color}]{top_border}[/{border_color}]")
-
-        # Function to generate status bar content
-        def get_bottom_toolbar():
-            return [("class:prompt.border", bottom_border_str)]
-
-        
 
         # Function for right border
         def get_rprompt():
@@ -556,13 +551,7 @@ class InteractiveSession:
         # Toolbar style
         toolbar_style = Style.from_dict(
             {
-                "bottom-toolbar": "noreverse",  # Container
-                "toolbar.model": "bold",
-                "toolbar.stats": "#888888",
-                "toolbar.timer": "ansiyellow",
-                "toolbar.meta": "italic #888888",
                 "rprompt": f"{border_color} bg:default",
-                # Ensure prompt border is styled
                 "prompt.border": border_color,
             }
         )
@@ -572,13 +561,11 @@ class InteractiveSession:
         # Use a prompt that mimics a left border
         result = self.session.prompt(
             [("class:prompt.border", "│ "), ("class:prompt.text", f"You {self._get_provider_icon(self.provider)} ➜ ")],
-            bottom_toolbar=get_bottom_toolbar,
             rprompt=get_rprompt,
             style=final_style,
-            refresh_interval=1.0,  # Update timer every second
         )
 
-        # Print bottom border to close the box (for history)
+        # Print bottom border to close the box
         self.ui.console.print(f"[{border_color}]{bottom_border_str}[/{border_color}]")
 
         return result
