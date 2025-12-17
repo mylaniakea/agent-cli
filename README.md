@@ -1,5 +1,10 @@
 # Agent CLI
 
+[![Tests](https://github.com/mpfaffenberger/agent-cli/actions/workflows/test.yml/badge.svg)](https://github.com/mpfaffenberger/agent-cli/actions/workflows/test.yml)
+[![Lint](https://github.com/mpfaffenberger/agent-cli/actions/workflows/lint.yml/badge.svg)](https://github.com/mpfaffenberger/agent-cli/actions/workflows/lint.yml)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 A custom LLM CLI tool that supports local agents (via Ollama) and external API providers with your own API keys.
 
 ## Features
