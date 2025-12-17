@@ -471,7 +471,15 @@ class InteractiveSession:
         return tokens
 
     def prompt(self, default: str = "") -> str:
-        """Get input from user with encapsulated style."""
+        """Get input from user with encapsulated style using custom container."""
+        from prompt_toolkit import Application
+        from prompt_toolkit.buffer import Buffer
+        from prompt_toolkit.layout.containers import Window, HSplit, VSplit
+        from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
+        from prompt_toolkit.layout import Layout
+        from prompt_toolkit.key_binding import KeyBindings
+        from prompt_toolkit.styles import Style, merge_styles
+        
         # Update style before prompt in case theme changed
         self.session.style = self.ui.theme_manager.get_current_style_for_prompt()
 
@@ -480,13 +488,11 @@ class InteractiveSession:
 
         # --- SIMPLE THEME (No Box) ---
         if theme_name == "simple":
-            # Function to generate status bar content (Keep status bar in simple mode)
+            # Use regular session prompt for simple theme
             def get_bottom_toolbar_simple():
                 return self._get_toolbar_tokens()
 
-            # Minimal toolbar style
             from prompt_toolkit.styles import Style, merge_styles
-
             simple_toolbar = Style.from_dict(
                 {
                     "bottom-toolbar": "noreverse",
@@ -503,17 +509,18 @@ class InteractiveSession:
                 bottom_toolbar=get_bottom_toolbar_simple,
                 style=final_style,
                 refresh_interval=1.0,
-            )        # --- BOXED THEME (Standard) ---
+            )
+
+        # --- BOXED THEME (Custom Container) ---
         rich_styles = PRESET_THEMES[theme_name]
-        border_color = rich_styles.get("prompt.border", "blue")
+        border_color = rich_styles.get("prompt.border", "#888888")
         char = rich_styles.get("prompt.border_char", "─")
         border_pattern = rich_styles.get("prompt.border_pattern", "solid")
 
-        # Create borders using console width
+        # Create borders
         width = self.ui.console.width
-
-        # Helper to generate border line
-        def make_border(start_char, end_char):
+        
+        def make_border_line(start_char, end_char):
             target_len = max(0, width - 2)
             if border_pattern == "solid":
                 b_str = (char * target_len)[:target_len]
@@ -522,8 +529,8 @@ class InteractiveSession:
                 b_str = (char * repeats)[:target_len]
             return f"{start_char}{b_str}{end_char}"
 
-        top_border = make_border("╭", "╮")
-        bottom_border_str = make_border("╰", "╯")
+        top_border = make_border_line("╭", "╮")
+        bottom_border = make_border_line("╰", "╯")
 
         # Display Ollama status if using ollama provider
         if self.provider == "ollama":
@@ -531,42 +538,73 @@ class InteractiveSession:
             ollama_mgr = get_ollama_manager()
             status = ollama_mgr.get_status_display()
             if status:
-                # Display status right-aligned above top border
                 self.ui.console.print(f"[dim]{status}[/dim]", justify="right")
-        
-        # Print top border using Rich
-        self.ui.console.print(f"[{border_color}]{top_border}[/{border_color}]")
 
-        # Function for right border
-        def get_rprompt():
-            return [("class:rprompt", "│")]
+        # Create buffer for input
+        buffer = Buffer()
 
-        # Define custom style - NO bottom toolbar, clean look
-        from prompt_toolkit.styles import Style, merge_styles
+        # Create style
+        custom_style = Style.from_dict({
+            "border": border_color,
+            "prompt": "bold",
+        })
+        final_style = merge_styles([self.session.style, custom_style])
 
-        toolbar_style = Style.from_dict(
-            {
-                "rprompt": f"{border_color}",
-                "prompt.border": f"{border_color}",
-                "prompt.text": "bold",
-            }
-        )
+        # Build layout with borders
+        root_container = HSplit([
+            # Top border
+            Window(
+                content=FormattedTextControl(text=[("class:border", top_border)]),
+                height=1,
+            ),
+            # Input line with left border, prompt, input, right border
+            VSplit([
+                Window(
+                    content=FormattedTextControl(text=[("class:border", "│ ")]),
+                    width=2,
+                ),
+                Window(
+                    content=FormattedTextControl(
+                        text=[("class:prompt", f"You {self._get_provider_icon(self.provider)} ➜ ")]
+                    ),
+                    dont_extend_width=True,
+                ),
+                Window(content=BufferControl(buffer=buffer)),
+                Window(
+                    content=FormattedTextControl(text=[("class:border", "│")]),
+                    width=1,
+                ),
+            ]),
+            # Bottom border
+            Window(
+                content=FormattedTextControl(text=[("class:border", bottom_border)]),
+                height=1,
+            ),
+        ])
 
-        final_style = merge_styles([self.session.style, toolbar_style])
+        layout = Layout(root_container)
 
-        # Prompt with left and right borders only
-        result = self.session.prompt(
-            [("class:prompt.border", "│ "), ("class:prompt.text", f"You {self._get_provider_icon(self.provider)} ➜ ")],
-            rprompt=get_rprompt,
+        # Key bindings
+        kb = KeyBindings()
+
+        @kb.add("enter")
+        def _(event):
+            event.app.exit(result=buffer.text)
+
+        @kb.add("c-c")
+        def _(event):
+            event.app.exit(result=None)
+
+        # Create and run application
+        app = Application(
+            layout=layout,
+            key_bindings=kb,
             style=final_style,
+            full_screen=False,
         )
 
-        # Print bottom border to close the box
-        self.ui.console.print(f"[{border_color}]{bottom_border_str}[/{border_color}]")
-
-        return result
-
-
+        result = app.run()
+        return result or ""
 
 class UI:
     """Centralized UI manager."""
