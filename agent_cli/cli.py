@@ -124,6 +124,12 @@ def chat(provider, model, non_interactive, stream, prompt):
         if onboarding_provider:
             # Use the provider from onboarding
             current_provider = onboarding_provider
+            # Reload .env file to pick up new variables
+            from dotenv import load_dotenv
+            from pathlib import Path
+            env_path = Path.cwd() / ".env"
+            if env_path.exists():
+                load_dotenv(env_path, override=True)
             config = Config()  # Reload config to pick up new env vars
             if onboarding_provider == "ollama":
                 current_model = config.default_ollama_model
@@ -135,8 +141,13 @@ def chat(provider, model, non_interactive, stream, prompt):
                 current_model = config.default_google_model
         
         # In interactive mode, use session state if provider/model not specified
-        current_provider = provider or session_state.get("provider") or "ollama"
-        current_model = model or session_state.get("model") or config.default_ollama_model
+        if not onboarding_provider:
+            current_provider = provider or session_state.get("provider") or "ollama"
+            current_model = model or session_state.get("model") or config.default_ollama_model
+        else:
+            # Use onboarding values, but allow CLI overrides
+            current_provider = provider or current_provider
+            current_model = model or current_model
         current_stream = stream if stream else session_state.get("stream", False)
         current_system_prompt = None  # Start with no system prompt
     else:

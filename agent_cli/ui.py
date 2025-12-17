@@ -532,6 +532,13 @@ class InteractiveSession:
         top_border = make_border_line("╭", "╮")
         bottom_border = make_border_line("╰", "╯")
 
+        # Display status bar with model/token info
+        status_tokens = self._get_toolbar_tokens()
+        if status_tokens:
+            # Convert tokens to string
+            status_text = "".join([text for style, text in status_tokens])
+            self.ui.console.print(f"[dim]{status_text}[/dim]")
+        
         # Display Ollama status if using ollama provider
         if self.provider == "ollama":
             from agent_cli.ollama_manager import get_ollama_manager
