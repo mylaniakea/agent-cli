@@ -89,6 +89,10 @@ def handle_model(command: str, context: Dict) -> bool:
             context[CONTEXT_KEY_MODEL] = new_model
             context[CONTEXT_KEY_AGENT] = test_agent
             ui.print_success(f"Switched to model: {new_model}")
+            # Load Ollama model if using ollama provider
+            if current_provider == "ollama":
+                from agent_cli.ollama_manager import get_ollama_manager
+                get_ollama_manager().load_model(new_model)
         except Exception as e:
             ui.print_error(f"Error switching model: {e}")
     else:
@@ -132,6 +136,10 @@ def handle_provider(command: str, context: Dict) -> bool:
                 context[CONTEXT_KEY_PROVIDER] = new_provider
                 context[CONTEXT_KEY_AGENT] = test_agent
                 ui.print_success(f"Switched to provider: {new_provider}")
+                # Load Ollama model if switched to ollama
+                if new_provider == "ollama":
+                    from agent_cli.ollama_manager import get_ollama_manager
+                    get_ollama_manager().load_model(current_model)
             except Exception as e:
                 ui.print_error(f"Error switching provider: {e}")
         else:

@@ -175,6 +175,12 @@ def chat(provider, model, interactive, stream, prompt):
 
         agent = create_agent()
 
+        # Load Ollama model if using ollama provider
+        if current_provider == "ollama":
+            from agent_cli.ollama_manager import get_ollama_manager
+            ollama_mgr = get_ollama_manager()
+            ollama_mgr.load_model(current_model)
+
         # Initialize interactive session status
         ui.interactive_session.update_status(current_provider, current_model)
 
@@ -445,6 +451,10 @@ def chat(provider, model, interactive, stream, prompt):
                 history = add_to_history(history, "assistant", response)
 
             except KeyboardInterrupt:
+                # Cleanup Ollama if used
+                if current_provider == "ollama":
+                    from agent_cli.ollama_manager import get_ollama_manager
+                    get_ollama_manager().cleanup()
                 ui.print_info("\nExiting...")
                 break
             except Exception as e:

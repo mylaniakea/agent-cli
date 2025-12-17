@@ -536,6 +536,15 @@ class InteractiveSession:
 
 
         # Print top border using Rich
+        # Display Ollama status if using ollama provider
+        if self.provider == "ollama":
+            from agent_cli.ollama_manager import get_ollama_manager
+            ollama_mgr = get_ollama_manager()
+            status = ollama_mgr.get_status_display()
+            if status:
+                # Display status right-aligned above top border
+                self.ui.console.print(f"[dim]{status}[/dim]", justify="right")
+        
         self.ui.console.print(f"[{border_color}]{top_border}[/{border_color}]")
 
         # Function for right border

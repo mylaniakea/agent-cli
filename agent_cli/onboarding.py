@@ -1,11 +1,13 @@
 """Interactive provider onboarding flow."""
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from rich.markdown import Markdown
+from rich.table import Table
 import os
 from pathlib import Path
+import requests
 
 
 class ProviderOnboarding:
@@ -104,23 +106,139 @@ Let's get you set up in just a few steps!
         self.console.print(panel)
         self.console.print()
 
-    def _onboard_ollama(self, info: Dict) -> Dict[str, str]:
+    def _test_ollama_connection(self, base_url: str) -> bool:
+        """Test connection to Ollama server."""
+        try:
+            response = requests.get(f"{base_url}/api/tags", timeout=5)
+            return response.status_code == 200
+        except Exception:
+            return False
+
+    def _get_ollama_models(self, base_url: str) -> List[str]:
+        """Fetch available models from Ollama server."""
+        try:
+            response = requests.get(f"{base_url}/api/tags", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                return [model["name"] for model in data.get("models", [])]
+        except Exception:
+            pass
+        return []
+
+    def _onboard_ollama(self, info: Dict) -> Optional[Dict[str, str]]:
         """Onboard Ollama (local, no API key)."""
-        self.console.print(f"[{info['color']}]Ollama runs locally - no API key needed! {info['icon']}[/{info['color']}]\n")
+        color = info["color"]
+        self.console.print(f"[{color}]Ollama runs locally - no API key needed! {info['icon']}[/{color}]\n")
         
-        # Ask for base URL
-        default_url = "http://localhost:11434"
-        base_url = Prompt.ask(
-            "Ollama Base URL",
-            default=default_url,
+        # Ask for IP/hostname
+        self.console.print("[dim]Enter the Ollama server address (hostname or IP)[/dim]")
+        hostname = Prompt.ask(
+            "Hostname/IP",
+            default="localhost",
             console=self.console
         )
         
+        port = Prompt.ask(
+            "Port",
+            default="11434",
+            console=self.console
+        )
+        
+        base_url = f"http://{hostname}:{port}"
+        
+        # Test connection
+        self.console.print(f"\n[{color}]Testing connection to {base_url}...[/{color}]")
+        
+        if not self._test_ollama_connection(base_url):
+            self.console.print(f"[red]✗[/red] Could not connect to Ollama at {base_url}")
+            self.console.print("[yellow]Make sure Ollama is running and accessible[/yellow]")
+            if not Confirm.ask("\nContinue anyway?", default=False, console=self.console):
+                return None
+            models = []
+        else:
+            self.console.print(f"[green]✓[/green] Connected successfully!\n")
+            
+            # Fetch available models
+            self.console.print(f"[{color}]Fetching available models...[/{color}]")
+            models = self._get_ollama_models(base_url)
+        
+        # Model selection
+        default_model = None
+        if models:
+            # Display models in a table
+            table = Table(title="Available Models", show_header=True, header_style="bold")
+            table.add_column("#", style="dim", width=4)
+            table.add_column("Model Name", style=color)
+            
+            for idx, model in enumerate(models, 1):
+                table.add_row(str(idx), model)
+            
+            self.console.print()
+            self.console.print(table)
+            self.console.print()
+            
+            # Let user select
+            selection = Prompt.ask(
+                f"Select default model [1-{len(models)}] or enter custom name",
+                default="1",
+                console=self.console
+            )
+            
+            # Parse selection
+            try:
+                idx = int(selection)
+                if 1 <= idx <= len(models):
+                    default_model = models[idx - 1]
+                else:
+                    default_model = selection
+            except ValueError:
+                default_model = selection
+        else:
+            # Manual entry
+            self.console.print(f"\n[{color}]Enter the model name you want to use[/{color}]")
+            default_model = Prompt.ask(
+                "Model name",
+                default="llama3.3",
+                console=self.console
+            )
+        
+        # Keep-alive time
+        self.console.print(f"\n[{color}]Set model keep-alive time[/{color}]")
+        self.console.print("[dim]How long to keep the model loaded in GPU memory (minutes)[/dim]")
+        self.console.print("[dim]0 = unload immediately, -1 = keep indefinitely[/dim]")
+        
+        keep_alive = Prompt.ask(
+            "Keep-alive (minutes)",
+            default="5",
+            console=self.console
+        )
+        
+        # Validate keep_alive is numeric
+        try:
+            keep_alive_val = int(keep_alive)
+        except ValueError:
+            self.console.print("[yellow]Invalid value, using default of 5 minutes[/yellow]")
+            keep_alive = "5"
+        
+        # Summary
+        self.console.print(f"\n[{color}]Configuration Summary:[/{color}]")
+        self.console.print(f"  Base URL: {base_url}")
+        self.console.print(f"  Default Model: {default_model}")
+        self.console.print(f"  Keep-alive: {keep_alive} minutes")
+        
         # Ask to save
         if Confirm.ask("\n💾 Save this configuration?", default=True, console=self.console):
-            self._save_to_env("OLLAMA_BASE_URL", base_url)
+            config = {
+                "OLLAMA_BASE_URL": base_url,
+                "OLLAMA_DEFAULT_MODEL": default_model,
+                "OLLAMA_KEEP_ALIVE": keep_alive,
+            }
+            
+            for key, value in config.items():
+                self._save_to_env(key, value)
+            
             self.console.print(f"\n[green]✓[/green] Saved to .env file")
-            return {"OLLAMA_BASE_URL": base_url}
+            return config
         
         return None
 
