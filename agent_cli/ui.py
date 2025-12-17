@@ -470,6 +470,11 @@ class InteractiveSession:
 
         return tokens
 
+
+    def _get_status_subtitle(self) -> str:
+        """Generate subtitle for response panels showing model and provider."""
+        return f"{self.model} ({self.provider})"
+
     def prompt(self, default: str = "") -> str:
         """Get input from user with encapsulated style using custom container."""
         from prompt_toolkit import Application
