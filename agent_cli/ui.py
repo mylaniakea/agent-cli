@@ -420,6 +420,16 @@ class InteractiveSession:
         # Re-initialize completer with updated dict
         self.slash_completer.commands = self.completer_dict
 
+    def _get_provider_icon(self, provider: str) -> str:
+        """Get emoji/icon for provider."""
+        icons = {
+            "openai": "🤖",      # Robot for ChatGPT/OpenAI
+            "anthropic": "🧠",   # Brain for Claude
+            "google": "✨",      # Sparkle for Gemini
+            "ollama": "🦙",      # Llama for Ollama
+        }
+        return icons.get(provider.lower(), "💬")  # Default chat bubble
+
     def _get_toolbar_tokens(self):
         """Generate tokens for the bottom status toolbar."""
         # Define styles for the toolbar components
@@ -489,7 +499,7 @@ class InteractiveSession:
             final_style = merge_styles([self.session.style, simple_toolbar])
 
             return self.session.prompt(
-                [("class:prompt.text", ">>> ")],
+                [("class:prompt.text", f"You {self._get_provider_icon(self.provider)} ➜ ")],
                 bottom_toolbar=get_bottom_toolbar_simple,
                 style=final_style,
                 refresh_interval=1.0,
@@ -559,7 +569,7 @@ class InteractiveSession:
 
         # Use a prompt that mimics a left border
         result = self.session.prompt(
-            [("class:prompt.border", "│ "), ("class:prompt.text", "You ➜ ")],
+            [("class:prompt.border", "│ "), ("class:prompt.text", f"You {self._get_provider_icon(self.provider)} ➜ ")],
             bottom_toolbar=get_bottom_toolbar,
             rprompt=get_rprompt,
             style=final_style,
