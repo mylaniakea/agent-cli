@@ -979,3 +979,34 @@ def handle_init(command: str, **kwargs) -> bool:
         ui.print_error(f"Failed to create config: {e}")
 
     return True
+
+
+@register_command(
+    name="setup",
+    description="Interactive setup for a provider",
+    usage="/setup <provider>",
+    aliases=[],
+    category="config",
+)
+def _handle_setup(context: Dict, args: str) -> bool:
+    """Handle the setup command - interactive provider onboarding."""
+    from agent_cli.onboarding import ProviderOnboarding
+    from rich.console import Console
+
+    args = args.strip()
+    if not args:
+        console = Console()
+        console.print("[yellow]Usage: /setup <provider>[/yellow]")
+        console.print("Available providers: openai, anthropic, google, ollama")
+        return True
+
+    provider = args.lower()
+    console = Console()
+    
+    result = ProviderOnboarding(console).run_onboarding(provider)
+    
+    if result:
+        console.print(f"\n[green bold]🎉 Setup complete![/green bold]")
+        console.print(f"[dim]Use /provider {provider} to switch to this provider[/dim]\n")
+    
+    return True

@@ -679,6 +679,17 @@ def mcp_show(name):
     ui.print_markdown(content)
 
 
+@cli.command()
+@click.argument("provider", type=click.Choice(["openai", "anthropic", "google", "ollama"]))
+def setup(provider: str):
+    """Interactive setup for a provider - configure API keys and settings."""
+    from agent_cli.onboarding import ProviderOnboarding
+    from rich.console import Console
+    
+    console = Console()
+    ProviderOnboarding.quick_setup(provider, console)
+
+
 def main():
     """Entry point for the CLI."""
     cli()

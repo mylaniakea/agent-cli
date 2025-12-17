@@ -558,9 +558,14 @@ class InteractiveSession:
 
         final_style = merge_styles([base_style, toolbar_style])
 
+        # Bottom toolbar shows the bottom border persistently
+        def get_bottom_toolbar():
+            return [("class:prompt.border", bottom_border_str)]
+
         # Use a prompt that mimics a left border
         result = self.session.prompt(
             [("class:prompt.border", "│ "), ("class:prompt.text", f"You {self._get_provider_icon(self.provider)} ➜ ")],
+            bottom_toolbar=get_bottom_toolbar,
             rprompt=get_rprompt,
             style=final_style,
         )
