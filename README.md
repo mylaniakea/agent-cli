@@ -1,7 +1,7 @@
 # Agent CLI
 
-[![Tests](https://github.com/mpfaffenberger/agent-cli/actions/workflows/test.yml/badge.svg)](https://github.com/mpfaffenberger/agent-cli/actions/workflows/test.yml)
-[![Lint](https://github.com/mpfaffenberger/agent-cli/actions/workflows/lint.yml/badge.svg)](https://github.com/mpfaffenberger/agent-cli/actions/workflows/lint.yml)
+[![Tests](https://github.com/mpfaffenberger/agent/actions/workflows/test.yml/badge.svg)](https://github.com/mpfaffenberger/agent/actions/workflows/test.yml)
+[![Lint](https://github.com/mpfaffenberger/agent/actions/workflows/lint.yml/badge.svg)](https://github.com/mpfaffenberger/agent/actions/workflows/lint.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -27,7 +27,7 @@ A custom LLM CLI tool that supports local agents (via Ollama) and external API p
 
 ```bash
 # Clone or navigate to the project
-cd agent-cli
+cd agent
 
 # Install dependencies
 pip install -r requirements.txt
@@ -41,7 +41,7 @@ pip install -e .
 Configuration can be set via multiple methods (priority order):
 
 1. **Environment variables** (highest priority)
-2. **config.ini file** (`~/.agent-cli/config.ini`)
+2. **config.ini file** (`~/.agent/config.ini`)
 3. **.env file** (project root)
 4. **Default values**
 
@@ -60,10 +60,10 @@ GOOGLE_API_KEY=your_key_here
 
 ### Using config.ini file
 
-Configuration is automatically saved to `~/.agent-cli/config.ini` when using the `/set` command in interactive mode, or you can edit it directly:
+Configuration is automatically saved to `~/.agent/config.ini` when using the `/set` command in interactive mode, or you can edit it directly:
 
 ```ini
-[agent-cli]
+[agent]
 OLLAMA_BASE_URL=http://192.168.1.100:11434
 DEFAULT_OLLAMA_MODEL=mistral
 ```
@@ -73,7 +73,7 @@ DEFAULT_OLLAMA_MODEL=mistral
 Use the `/set` command in interactive mode:
 
 ```bash
-agent-cli --provider ollama --model llama2 --interactive
+agent --provider ollama --model llama2 # Interactive by default!
 You: /set OLLAMA_BASE_URL=http://192.168.1.100:11434
 Set OLLAMA_BASE_URL = http://192.168.1.100:11434
 ```
@@ -87,28 +87,28 @@ Set OLLAMA_BASE_URL = http://192.168.1.100:11434
 
 ```bash
 # Use a local Ollama model
-agent-cli --provider ollama --model llama2 "What is Python?"
+agent --provider ollama --model llama2 "What is Python?"
 
 # Use OpenAI (requires API key)
-agent-cli --provider openai --model gpt-4 "Explain quantum computing"
+agent --provider openai --model gpt-4 "Explain quantum computing"
 
 # Use Anthropic (requires API key)
-agent-cli --provider anthropic --model claude-3-sonnet "Write a poem"
+agent --provider anthropic --model claude-3-sonnet "Write a poem"
 
 # Use Google Gemini (requires API key)
-agent-cli --provider google --model gemini-pro "What is machine learning?"
+agent --provider google --model gemini-pro "What is machine learning?"
 
 # Interactive mode (provider/model optional - uses last session)
-agent-cli --provider ollama --model llama2 --interactive
+agent --provider ollama --model llama2 # Interactive by default!
 
 # Interactive mode without provider/model (uses last session state)
-agent-cli --interactive
+agent # Interactive by default!
 
 # Streaming mode (real-time token output)
-agent-cli --provider openai --model gpt-4 --stream "Explain quantum computing"
+agent --provider openai --model gpt-4 --stream "Explain quantum computing"
 
 # Interactive mode with streaming
-agent-cli --provider ollama --model llama2 --interactive --stream
+agent --provider ollama --model llama2 # Interactive by default! --stream
 ```
 
 ## Development Status
@@ -159,8 +159,8 @@ This project was inspired by and borrows patterns from [code-puppy](https://gith
 
 ```bash
 # Clone the repository
-git clone https://github.com/mpfaffenberger/agent-cli.git
-cd agent-cli
+git clone https://github.com/mpfaffenberger/agent.git
+cd agent
 
 # Install with development dependencies
 make install
@@ -206,4 +206,4 @@ Special thanks to:
 - [code_puppy](https://github.com/mpfaffenberger/code_puppy) - Architecture and design patterns
 - [Rich](https://github.com/Textualize/rich) - Beautiful terminal output
 - [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) - Interactive prompts
-- All contributors and users of agent-cli
+- All contributors and users of agent

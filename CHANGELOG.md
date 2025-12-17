@@ -1,3 +1,29 @@
+## [1.1.0] - 2025-12-17
+
+### Added
+- **Custom Container UI**: Complete box borders visible WHILE typing (top, left, right, bottom)
+- **Interactive Onboarding**: First-run setup flow with multi-provider selection
+- **Ollama Enhancements**:
+  - Connection testing during setup
+  - Model selection from available models
+  - Keep-alive timer configuration
+  - Real-time status display with countdown timer
+  - Automatic model cleanup on exit
+- **Interactive by Default**: `agent chat` now runs in interactive mode without flags
+- **Environment Variable Fixes**: Corrected naming (`DEFAULT_OLLAMA_MODEL` vs `OLLAMA_DEFAULT_MODEL`)
+
+### Changed
+- **UI Theme**: Changed from blue to clean gray (#888888) for better aesthetics
+- **CLI Behavior**: Interactive mode is now default; use `--non-interactive` for single prompts
+- **Prompt Implementation**: Complete rewrite using prompt_toolkit custom containers
+
+### Fixed
+- Bottom border now displays inline during typing (not just after)
+- Autocomplete menu styling (removed harsh blue)
+- Model configuration loading from environment
+
+---
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
