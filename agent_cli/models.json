@@ -1,19 +1,31 @@
 {
   "ollama": {
-    "llama2": {
-      "context_length": 4096,
-      "max_tokens": 2048,
+    "llama3.3": {
+      "context_length": 131072,
+      "max_tokens": 8192,
+      "supports_streaming": true,
+      "supports_history": true
+    },
+    "llama3.2": {
+      "context_length": 131072,
+      "max_tokens": 8192,
+      "supports_streaming": true,
+      "supports_history": true
+    },
+    "qwen2.5": {
+      "context_length": 131072,
+      "max_tokens": 8192,
+      "supports_streaming": true,
+      "supports_history": true
+    },
+    "deepseek-coder-v2": {
+      "context_length": 163840,
+      "max_tokens": 8192,
       "supports_streaming": true,
       "supports_history": true
     },
     "mistral": {
-      "context_length": 8192,
-      "max_tokens": 4096,
-      "supports_streaming": true,
-      "supports_history": true
-    },
-    "llama3": {
-      "context_length": 8192,
+      "context_length": 32768,
       "max_tokens": 4096,
       "supports_streaming": true,
       "supports_history": true
@@ -26,6 +38,30 @@
     }
   },
   "openai": {
+    "gpt-4o": {
+      "context_length": 128000,
+      "max_tokens": 16384,
+      "supports_streaming": true,
+      "supports_history": true,
+      "default_temperature": 0.7,
+      "supports_vision": true
+    },
+    "gpt-4o-mini": {
+      "context_length": 128000,
+      "max_tokens": 16384,
+      "supports_streaming": true,
+      "supports_history": true,
+      "default_temperature": 0.7,
+      "supports_vision": true
+    },
+    "gpt-4-turbo": {
+      "context_length": 128000,
+      "max_tokens": 4096,
+      "supports_streaming": true,
+      "supports_history": true,
+      "default_temperature": 0.7,
+      "supports_vision": true
+    },
     "gpt-4": {
       "context_length": 8192,
       "max_tokens": 4096,
@@ -33,73 +69,88 @@
       "supports_history": true,
       "default_temperature": 0.7
     },
-    "gpt-4-turbo": {
+    "o1": {
+      "context_length": 200000,
+      "max_tokens": 100000,
+      "supports_streaming": false,
+      "supports_history": true,
+      "default_temperature": 1.0,
+      "reasoning_model": true
+    },
+    "o1-mini": {
       "context_length": 128000,
-      "max_tokens": 4096,
-      "supports_streaming": true,
+      "max_tokens": 65536,
+      "supports_streaming": false,
       "supports_history": true,
-      "default_temperature": 0.7
-    },
-    "gpt-3.5-turbo": {
-      "context_length": 16385,
-      "max_tokens": 4096,
-      "supports_streaming": true,
-      "supports_history": true,
-      "default_temperature": 0.7
-    },
-    "gpt-3.5-turbo-16k": {
-      "context_length": 16385,
-      "max_tokens": 4096,
-      "supports_streaming": true,
-      "supports_history": true,
-      "default_temperature": 0.7
+      "default_temperature": 1.0,
+      "reasoning_model": true
     }
   },
   "anthropic": {
+    "claude-3-5-sonnet-20241022": {
+      "context_length": 200000,
+      "max_tokens": 8192,
+      "supports_streaming": true,
+      "supports_history": true,
+      "default_temperature": 0.7,
+      "supports_vision": true
+    },
+    "claude-3-5-haiku-20241022": {
+      "context_length": 200000,
+      "max_tokens": 8192,
+      "supports_streaming": true,
+      "supports_history": true,
+      "default_temperature": 0.7,
+      "supports_vision": true
+    },
     "claude-3-opus-20240229": {
       "context_length": 200000,
       "max_tokens": 4096,
       "supports_streaming": true,
       "supports_history": true,
-      "default_temperature": 1.0
+      "default_temperature": 0.7,
+      "supports_vision": true
     },
     "claude-3-sonnet-20240229": {
       "context_length": 200000,
       "max_tokens": 4096,
       "supports_streaming": true,
       "supports_history": true,
-      "default_temperature": 1.0
+      "default_temperature": 0.7,
+      "supports_vision": true
     },
     "claude-3-haiku-20240307": {
       "context_length": 200000,
       "max_tokens": 4096,
       "supports_streaming": true,
       "supports_history": true,
-      "default_temperature": 1.0
+      "default_temperature": 0.7,
+      "supports_vision": true
     }
   },
   "google": {
-    "gemini-pro": {
-      "context_length": 32768,
-      "max_tokens": 2048,
-      "supports_streaming": true,
-      "supports_history": true,
-      "default_temperature": 0.9
-    },
     "gemini-1.5-pro": {
-      "context_length": 1000000,
+      "context_length": 2097152,
       "max_tokens": 8192,
       "supports_streaming": true,
       "supports_history": true,
-      "default_temperature": 0.9
+      "default_temperature": 0.7,
+      "supports_vision": true
     },
     "gemini-1.5-flash": {
-      "context_length": 1000000,
+      "context_length": 1048576,
       "max_tokens": 8192,
       "supports_streaming": true,
       "supports_history": true,
-      "default_temperature": 0.9
+      "default_temperature": 0.7,
+      "supports_vision": true
+    },
+    "gemini-pro": {
+      "context_length": 32768,
+      "max_tokens": 8192,
+      "supports_streaming": true,
+      "supports_history": true,
+      "default_temperature": 0.7
     }
   }
 }
-
