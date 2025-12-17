@@ -1,10 +1,8 @@
 """Unit tests for config module."""
-import os
-from pathlib import Path
-from unittest.mock import patch
-import pytest
 
-from agent_cli.config import Config, CONFIG_DIR, DATA_DIR, CACHE_DIR, STATE_DIR
+from pathlib import Path
+
+from agent_cli.config import CACHE_DIR, CONFIG_DIR, DATA_DIR, STATE_DIR, Config
 
 
 class TestConfigDirectories:

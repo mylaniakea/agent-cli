@@ -2,19 +2,21 @@
 
 Inspired by code-puppy's session-based agent selection, adapted for agent-cli.
 """
+
 import json
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
+
 from agent_cli.config import STATE_DIR
 
 
 def get_terminal_session_id() -> str:
     """Get a unique identifier for the current terminal session.
-    
+
     Uses parent process ID (PPID) as the session identifier.
     This works across all platforms and provides session isolation.
-    
+
     Returns:
         str: Unique session identifier (e.g., "session_12345")
     """
@@ -33,10 +35,10 @@ def _get_session_file_path() -> Path:
 
 def _is_process_alive(pid: int) -> bool:
     """Check if a process with the given PID is still alive, cross-platform.
-    
+
     Args:
         pid: Process ID to check
-        
+
     Returns:
         bool: True if process likely exists, False otherwise
     """
@@ -45,7 +47,7 @@ def _is_process_alive(pid: int) -> bool:
             # Windows: use OpenProcess to probe liveness safely
             import ctypes
             from ctypes import wintypes
-            
+
             PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
             kernel32 = ctypes.windll.kernel32
             kernel32.OpenProcess.argtypes = [
@@ -54,9 +56,7 @@ def _is_process_alive(pid: int) -> bool:
                 wintypes.DWORD,
             ]
             kernel32.OpenProcess.restype = wintypes.HANDLE
-            handle = kernel32.OpenProcess(
-                PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid)
-            )
+            handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
             if handle:
                 kernel32.CloseHandle(handle)
                 return True
@@ -82,18 +82,18 @@ def _is_process_alive(pid: int) -> bool:
 
 def _load_sessions() -> Dict[str, Dict]:
     """Load session data from file.
-    
+
     Returns:
         Dictionary mapping session IDs to session data
     """
     session_file = _get_session_file_path()
     if not session_file.exists():
         return {}
-    
+
     try:
-        with open(session_file, 'r') as f:
+        with open(session_file) as f:
             sessions = json.load(f)
-        
+
         # Clean up dead sessions (sessions whose parent process no longer exists)
         cleaned_sessions = {}
         for session_id, session_data in sessions.items():
@@ -116,36 +116,36 @@ def _load_sessions() -> Dict[str, Dict]:
             else:
                 # Unknown format, keep it
                 cleaned_sessions[session_id] = session_data
-        
+
         # Save cleaned sessions if we removed any
         if len(cleaned_sessions) != len(sessions):
             _save_sessions(cleaned_sessions)
-        
+
         return cleaned_sessions
-    except (json.JSONDecodeError, IOError):
+    except (OSError, json.JSONDecodeError):
         return {}
 
 
 def _save_sessions(sessions: Dict[str, Dict]) -> None:
     """Save session data to file.
-    
+
     Args:
         sessions: Dictionary mapping session IDs to session data
     """
     session_file = _get_session_file_path()
     session_file.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    
+
     try:
-        with open(session_file, 'w') as f:
+        with open(session_file, "w") as f:
             json.dump(sessions, f, indent=2)
-    except IOError:
+    except OSError:
         # Silently fail if we can't write (e.g., permissions)
         pass
 
 
 def get_session_state() -> Dict:
     """Get the current session's state.
-    
+
     Returns:
         Dictionary with session state (provider, model, etc.)
     """
@@ -156,7 +156,7 @@ def get_session_state() -> Dict:
 
 def save_session_state(state: Dict) -> None:
     """Save the current session's state.
-    
+
     Args:
         state: Dictionary with session state to save
     """
@@ -168,7 +168,7 @@ def save_session_state(state: Dict) -> None:
 
 def update_session_state(**kwargs) -> None:
     """Update specific fields in the current session's state.
-    
+
     Args:
         **kwargs: Key-value pairs to update in session state
     """
@@ -188,7 +188,7 @@ def clear_session_state() -> None:
 
 def create_new_session() -> str:
     """Create a new session (clears current session state).
-    
+
     Returns:
         New session ID
     """
@@ -198,9 +198,8 @@ def create_new_session() -> str:
 
 def list_all_sessions() -> Dict[str, Dict]:
     """List all active sessions.
-    
+
     Returns:
         Dictionary mapping session IDs to session data
     """
     return _load_sessions()
-

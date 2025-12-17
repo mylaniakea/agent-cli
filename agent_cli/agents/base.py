@@ -1,14 +1,16 @@
 """Base agent interface."""
+
 from abc import ABC, abstractmethod
-from typing import Iterator, List, Dict, Optional
+from collections.abc import Iterator
+from typing import Dict, List, Optional
 
 
 class BaseAgent(ABC):
     """Base class for all agent implementations."""
-    
+
     def __init__(self, model: str, config, system_prompt: Optional[str] = None):
         """Initialize the agent.
-        
+
         Args:
             model: Model name to use
             config: Configuration object
@@ -17,27 +19,27 @@ class BaseAgent(ABC):
         self.model = model
         self.config = config
         self.system_prompt = system_prompt
-    
+
     @abstractmethod
     def chat(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> str:
         """Send a chat message and get a response.
-        
+
         Args:
             prompt: User's message/prompt
             history: Optional conversation history as list of dicts with 'role' and 'content'
-            
+
         Returns:
             Agent's response
         """
         pass
-    
+
     def stream(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> Iterator[str]:
         """Stream a chat response token by token.
-        
+
         Args:
             prompt: User's message/prompt
             history: Optional conversation history as list of dicts with 'role' and 'content'
-            
+
         Yields:
             Response tokens as strings
         """
@@ -45,11 +47,11 @@ class BaseAgent(ABC):
         # Subclasses should override for true streaming
         response = self.chat(prompt, history)
         yield response
-    
+
     @abstractmethod
     def list_models(self) -> list:
         """List available models for this provider.
-        
+
         Returns:
             List of available model names
         """

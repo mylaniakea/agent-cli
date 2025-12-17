@@ -1,16 +1,15 @@
 """Unit tests for command_registry module."""
+
+
 import pytest
-from unittest.mock import MagicMock
 
 from agent_cli.command_registry import (
-    CommandInfo,
-    register_command,
-    get_command,
-    get_all_commands,
-    get_commands_by_category,
-    handle_command,
+    _COMMAND_REGISTRY,
     generate_help_text,
-    _COMMAND_REGISTRY
+    get_all_commands,
+    get_command,
+    handle_command,
+    register_command,
 )
 
 
@@ -27,10 +26,11 @@ class TestCommandRegistration:
 
     def test_register_simple_command(self):
         """Test registering a basic command."""
+
         @register_command("test", "Test command")
         def test_handler(cmd, ctx):
             return True
-        
+
         cmd = get_command("test")
         assert cmd is not None
         assert cmd.name == "test"
@@ -38,14 +38,15 @@ class TestCommandRegistration:
 
     def test_register_command_with_aliases(self):
         """Test registering a command with aliases."""
+
         @register_command("test", "Test command", aliases=["t", "tst"])
         def test_handler(cmd, ctx):
             return True
-        
+
         # Primary name should work
         cmd = get_command("test")
         assert cmd is not None
-        
+
         # Aliases should work
         assert get_command("t") == cmd
         assert get_command("tst") == cmd
@@ -60,14 +61,15 @@ class TestCommandRetrieval:
 
     def test_get_all_commands_returns_dict(self):
         """Test getting all registered commands returns dict."""
+
         @register_command("test1", "Test 1")
         def handler1(cmd, ctx):
             return True
-        
+
         @register_command("test2", "Test 2")
         def handler2(cmd, ctx):
             return True
-        
+
         commands = get_all_commands()
         assert isinstance(commands, dict)
         assert "test1" in commands
@@ -79,19 +81,21 @@ class TestCommandHandling:
 
     def test_handle_command_success(self):
         """Test handling a command that succeeds."""
+
         @register_command("test", "Test command")
         def handler(cmd, ctx):
             return True
-        
+
         result = handle_command("/test", {})
         assert result is True
 
     def test_handle_command_case_insensitive(self):
         """Test that command names are case-insensitive."""
+
         @register_command("test", "Test command")
         def handler(cmd, ctx):
             return True
-        
+
         result = handle_command("/TEST", {})
         assert result is True
 
@@ -106,10 +110,11 @@ class TestHelpGeneration:
 
     def test_generate_help_returns_string(self):
         """Test that help generation returns a string."""
+
         @register_command("test1", "Test 1", category="cat1")
         def handler1(cmd, ctx):
             return True
-        
+
         help_text = generate_help_text()
         assert isinstance(help_text, str)
         assert len(help_text) > 0

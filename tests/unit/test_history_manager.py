@@ -1,6 +1,5 @@
 """Unit tests for history_manager module."""
-from unittest.mock import patch
-import pytest
+
 
 from agent_cli import history_manager
 
@@ -40,7 +39,7 @@ class TestHistoryCompaction:
         """Test that compact_history returns a list."""
         history = [{"role": "user", "content": f"msg{i}"} for i in range(20)]
         result = history_manager.compact_history(history)
-        
+
         assert isinstance(result, list)
         # Should return history that is same or smaller
         assert len(result) <= len(history)
@@ -52,7 +51,7 @@ class TestHistoryCompaction:
             {"role": "assistant", "content": "resp1"},
         ]
         result = history_manager.compact_history(history)
-        
+
         # Each message should still have role and content
         for msg in result:
             assert "role" in msg

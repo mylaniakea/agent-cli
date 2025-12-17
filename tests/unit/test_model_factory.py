@@ -1,7 +1,9 @@
 """Unit tests for model_factory module."""
+
 import json
 from pathlib import Path
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open, patch
+
 import pytest
 
 from agent_cli.model_factory import ModelFactory, ModelMetadata
@@ -27,9 +29,9 @@ class TestModelMetadata:
             max_tokens=2048,
             supports_streaming=True,
             supports_history=True,
-            default_temperature=0.7
+            default_temperature=0.7,
         )
-        
+
         assert metadata.provider == "ollama"
         assert metadata.model_name == "llama2"
         assert metadata.context_length == 4096
@@ -40,24 +42,17 @@ class TestModelFactory:
 
     def test_load_config_empty_file(self):
         """Test loading config when file doesn't exist."""
-        with patch.object(Path, 'exists', return_value=False):
+        with patch.object(Path, "exists", return_value=False):
             config = ModelFactory.load_config()
             assert config == {}
 
     def test_load_config_valid_json(self):
         """Test loading valid JSON configuration."""
-        test_config = {
-            "ollama": {
-                "llama2": {
-                    "context_length": 4096,
-                    "max_tokens": 2048
-                }
-            }
-        }
-        
+        test_config = {"ollama": {"llama2": {"context_length": 4096, "max_tokens": 2048}}}
+
         mock_file = mock_open(read_data=json.dumps(test_config))
-        with patch('builtins.open', mock_file):
-            with patch.object(Path, 'exists', return_value=True):
+        with patch("builtins.open", mock_file):
+            with patch.object(Path, "exists", return_value=True):
                 config = ModelFactory.load_config()
                 assert config == test_config
 
@@ -69,14 +64,14 @@ class TestModelFactory:
                     "context_length": 4096,
                     "max_tokens": 2048,
                     "supports_streaming": True,
-                    "supports_history": True
+                    "supports_history": True,
                 }
             }
         }
-        
+
         ModelFactory._config_cache = test_config
         metadata = ModelFactory.get_model_metadata("ollama", "llama2")
-        
+
         assert metadata is not None
         assert metadata.provider == "ollama"
         assert metadata.model_name == "llama2"
@@ -90,14 +85,8 @@ class TestModelFactory:
 
     def test_validate_model_exists(self):
         """Test validating an existing model."""
-        test_config = {
-            "ollama": {
-                "llama2": {
-                    "context_length": 4096
-                }
-            }
-        }
-        
+        test_config = {"ollama": {"llama2": {"context_length": 4096}}}
+
         ModelFactory._config_cache = test_config
         assert ModelFactory.validate_model("ollama", "llama2") is True
 

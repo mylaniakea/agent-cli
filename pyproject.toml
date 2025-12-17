@@ -38,6 +38,9 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-mock",
+    "ruff",
+    "mypy",
+    "pre-commit",
 ]
 
 [project.scripts]
@@ -53,3 +56,15 @@ addopts = "-v --cov=agent_cli --cov-report=term-missing"
 [tool.coverage.run]
 source = ["agent_cli"]
 omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+check_untyped_defs = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"

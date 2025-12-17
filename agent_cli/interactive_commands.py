@@ -2,10 +2,11 @@
 
 Commands are registered using the @register_command decorator from command_registry.
 """
+
 from typing import Dict
+
 from agent_cli.command_registry import register_command
 from agent_cli.ui import ui
-
 
 # Context keys for command handlers
 CONTEXT_KEY_AGENT = "agent"
@@ -24,14 +25,14 @@ CONTEXT_KEY_SYSTEM_PROMPT = "system_prompt"
     aliases=["h", "?"],
     category="core",
     detailed_help="Show all available commands or detailed help for a specific command.\n"
-                  "Examples:\n"
-                  "  /help          - Show all commands\n"
-                  "  /help model    - Show detailed help for /model command"
+    "Examples:\n"
+    "  /help          - Show all commands\n"
+    "  /help model    - Show detailed help for /model command",
 )
 def handle_help(command: str, context: Dict) -> bool:
     """Handle /help command."""
     from agent_cli.command_registry import generate_help_text
-    
+
     # Remove leading /help and split
     parts = command.split(None, 1)
     if len(parts) > 1:
@@ -41,15 +42,15 @@ def handle_help(command: str, context: Dict) -> bool:
     else:
         # Show all commands
         help_text = generate_help_text()
-    
+
     # Check if generate_help_text returns plain text and we want to render it nicely?
     # Actually, generate_help_text likely returns a string. We can try to format it better or just print it.
     # For now, print nicely.
     ui.print_info(help_text)
-    
+
     ui.print_info("File References:")
     ui.print_info("  Use @filename to include file contents in your prompt")
-    ui.print_info("  Example: @config.py or @\"file with spaces.txt\"")
+    ui.print_info('  Example: @config.py or @"file with spaces.txt"')
     return True
 
 
@@ -60,23 +61,23 @@ def handle_help(command: str, context: Dict) -> bool:
     aliases=["m"],
     category="config",
     detailed_help="Switch to a different model or show the current model.\n"
-                  "Examples:\n"
-                  "  /model          - Show current model\n"
-                  "  /model mistral  - Switch to mistral model"
+    "Examples:\n"
+    "  /model          - Show current model\n"
+    "  /model mistral  - Switch to mistral model",
 )
 def handle_model(command: str, context: Dict) -> bool:
     """Handle /model command."""
     from agent_cli.agents import AgentFactory
-    
+
     parts = command.split(None, 1)
     config = context.get(CONTEXT_KEY_CONFIG)
     current_provider = context.get(CONTEXT_KEY_PROVIDER, "")
     current_model = context.get(CONTEXT_KEY_MODEL, "")
-    
+
     if not config:
         ui.print_error("Configuration not available.")
         return True
-    
+
     if len(parts) > 1:
         # Switch model
         new_model = parts[1]
@@ -91,7 +92,7 @@ def handle_model(command: str, context: Dict) -> bool:
     else:
         # Show current model
         ui.print_info(f"Current model: {current_model}")
-    
+
     return True
 
 
@@ -102,24 +103,24 @@ def handle_model(command: str, context: Dict) -> bool:
     aliases=["p"],
     category="config",
     detailed_help="Switch to a different provider or show the current provider.\n"
-                  "Available providers: ollama, openai, anthropic, google\n"
-                  "Examples:\n"
-                  "  /provider         - Show current provider\n"
-                  "  /provider openai  - Switch to OpenAI provider"
+    "Available providers: ollama, openai, anthropic, google\n"
+    "Examples:\n"
+    "  /provider         - Show current provider\n"
+    "  /provider openai  - Switch to OpenAI provider",
 )
 def handle_provider(command: str, context: Dict) -> bool:
     """Handle /provider command."""
     from agent_cli.agents import AgentFactory
-    
+
     parts = command.split(None, 1)
     config = context.get(CONTEXT_KEY_CONFIG)
     current_provider = context.get(CONTEXT_KEY_PROVIDER, "")
     current_model = context.get(CONTEXT_KEY_MODEL, "")
-    
+
     if not config:
         ui.print_error("Configuration not available.")
         return True
-    
+
     if len(parts) > 1:
         new_provider = parts[1].lower()
         if new_provider in ["ollama", "openai", "anthropic", "google"]:
@@ -136,7 +137,7 @@ def handle_provider(command: str, context: Dict) -> bool:
     else:
         # Show current provider
         ui.print_info(f"Current provider: {current_provider}")
-    
+
     return True
 
 
@@ -147,8 +148,8 @@ def handle_provider(command: str, context: Dict) -> bool:
     aliases=["s"],
     category="config",
     detailed_help="Toggle streaming mode on or off.\n"
-                  "When enabled, responses are streamed token by token.\n"
-                  "When disabled, responses are returned all at once."
+    "When enabled, responses are streamed token by token.\n"
+    "When disabled, responses are returned all at once.",
 )
 def handle_stream(command: str, context: Dict) -> bool:
     """Handle /stream command."""
@@ -165,7 +166,7 @@ def handle_stream(command: str, context: Dict) -> bool:
     aliases=["c"],
     category="session",
     detailed_help="Clear the conversation history for the current session.\n"
-                  "This removes all previous messages from context."
+    "This removes all previous messages from context.",
 )
 def handle_clear(command: str, context: Dict) -> bool:
     """Handle /clear command."""
@@ -185,28 +186,30 @@ def handle_clear(command: str, context: Dict) -> bool:
     aliases=["hist"],
     category="session",
     detailed_help="Show the recent conversation history.\n"
-                  "Displays the last 10 messages in the conversation.\n"
-                  "Use '/history compact' to manually compact the history."
+    "Displays the last 10 messages in the conversation.\n"
+    "Use '/history compact' to manually compact the history.",
 )
 def handle_history(command: str, context: Dict) -> bool:
     """Handle /history command."""
-    from agent_cli.history_manager import format_history_summary, compact_history
-    
+    from agent_cli.history_manager import compact_history, format_history_summary
+
     history = context.get(CONTEXT_KEY_HISTORY, [])
-    
+
     # Check for compact subcommand
     parts = command.split(None, 1)
     if len(parts) > 1 and parts[1].lower() == "compact":
         if history:
             config = context.get(CONTEXT_KEY_CONFIG)
-            strategy = config.get_value("HISTORY_COMPACTION_STRATEGY", "recent") if config else "recent"
+            strategy = (
+                config.get_value("HISTORY_COMPACTION_STRATEGY", "recent") if config else "recent"
+            )
             compacted = compact_history(history, strategy)
             context[CONTEXT_KEY_HISTORY] = compacted
             ui.print_success(f"History compacted: {len(history)} → {len(compacted)} messages")
         else:
             ui.print_info("No history to compact.")
         return True
-    
+
     if history:
         summary = format_history_summary(history, max_lines=10)
         ui.print_markdown(f"**Recent Conversation History:**\n\n```\n{summary}\n```")
@@ -222,10 +225,10 @@ def handle_history(command: str, context: Dict) -> bool:
     aliases=["cfg"],
     category="config",
     detailed_help="Show the current configuration including:\n"
-                  "- Current provider and model\n"
-                  "- Streaming mode status\n"
-                  "- API key status\n"
-                  "- Ollama URL"
+    "- Current provider and model\n"
+    "- Streaming mode status\n"
+    "- API key status\n"
+    "- Ollama URL",
 )
 def handle_config(command: str, context: Dict) -> bool:
     """Handle /config command."""
@@ -233,19 +236,19 @@ def handle_config(command: str, context: Dict) -> bool:
     current_provider = context.get(CONTEXT_KEY_PROVIDER, "")
     current_model = context.get(CONTEXT_KEY_MODEL, "")
     current_stream = context.get(CONTEXT_KEY_STREAM, False)
-    
+
     if not config:
         ui.print_error("Configuration not available.")
         return True
-    
+
     rows = [
         ["Provider", current_provider],
         ["Model", current_model],
         ["Streaming", str(current_stream)],
         ["Ollama URL", config.ollama_base_url],
-        ["OpenAI API Key", 'Set' if config.openai_api_key else 'Not set'],
-        ["Anthropic API Key", 'Set' if config.anthropic_api_key else 'Not set'],
-        ["Google API Key", 'Set' if config.google_api_key else 'Not set'],
+        ["OpenAI API Key", "Set" if config.openai_api_key else "Not set"],
+        ["Anthropic API Key", "Set" if config.anthropic_api_key else "Not set"],
+        ["Google API Key", "Set" if config.google_api_key else "Not set"],
     ]
     ui.print_table("Current Configuration", ["Setting", "Value"], rows)
     return True
@@ -257,7 +260,7 @@ def handle_config(command: str, context: Dict) -> bool:
     usage="/mcp",
     category="config",
     detailed_help="Show information about MCP server management.\n"
-                  "Use 'agent-cli mcp' commands to manage MCP servers."
+    "Use 'agent-cli mcp' commands to manage MCP servers.",
 )
 def handle_mcp(command: str, context: Dict) -> bool:
     """Handle /mcp command."""
@@ -269,86 +272,90 @@ def handle_mcp(command: str, context: Dict) -> bool:
         ["agent-cli mcp remove <name>", "Remove a server"],
     ]
     from agent_cli.ui import ui
-    
+
     parts = command.split(None, 2)
     if len(parts) < 2:
         ui.print_info("Usage: /mcp <list|add|remove|show> [args]")
         return True
-        
+
     action = parts[1].lower()
-    
+
     config = context.get(CONTEXT_KEY_CONFIG)
     if not config:
         ui.print_error("Configuration not available.")
         return True
-    
+
     mcp_config = config.get_mcp_config()
-    
+
     if action == "list":
         rows = []
         for name, details in mcp_config.items():
             command_str = details.get("command", "")
             args_str = " ".join(details.get("args", []))
             rows.append([name, f"{command_str} {args_str}"])
-        
+
         if not rows:
             ui.print_info("No MCP servers configured.")
         else:
             ui.print_table("MCP Servers", ["Name", "Command"], rows)
-            
+
     elif action == "add":
         if len(parts) < 3:
             ui.print_info("Usage: /mcp add <name> <command_string>")
             return True
-        
+
         # Simple parsing logic (could be improved for complex quotes)
         args_part = parts[2]
         name_config = args_part.split(None, 1)
         name = name_config[0]
         cmd_string = name_config[1] if len(name_config) > 1 else ""
-        
+
         # Need to split command string into cmd + args list for config
         import shlex
+
         try:
             split_cmd = shlex.split(cmd_string)
             if not split_cmd:
-                 ui.print_error("Invalid command string.")
-                 return True
-                 
+                ui.print_error("Invalid command string.")
+                return True
+
             cmd_exe = split_cmd[0]
             cmd_args = split_cmd[1:]
-            
+
             config.add_mcp_server(name, cmd_exe, cmd_args)
             ui.print_success(f"Added MCP server '{name}'")
-            
+
         except Exception as e:
             ui.print_error(f"Error parsing command: {e}")
-            
+
     elif action == "remove":
         if len(parts) < 3:
             ui.print_info("Usage: /mcp remove <name>")
             return True
         name = parts[2]
         if config.remove_mcp_server(name):
-             ui.print_success(f"Removed MCP server '{name}'")
+            ui.print_success(f"Removed MCP server '{name}'")
         else:
-             ui.print_error(f"MCP server '{name}' not found.")
+            ui.print_error(f"MCP server '{name}' not found.")
 
     elif action == "show":
         if len(parts) < 3:
-             ui.print_info("Usage: /mcp show <name>")
-             return True
+            ui.print_info("Usage: /mcp show <name>")
+            return True
         name = parts[2]
         servers = config.get_mcp_config()
         if name in servers:
             import json
-            ui.print_markdown(f"**{name}** Configuration:\n```json\n{json.dumps(servers[name], indent=2)}\n```")
+
+            ui.print_markdown(
+                f"**{name}** Configuration:\n```json\n{json.dumps(servers[name], indent=2)}\n```"
+            )
         else:
             ui.print_error(f"MCP server '{name}' not found.")
 
     else:
         ui.print_error(f"Unknown action: {action}")
-        
+
     return True
 
 
@@ -359,117 +366,123 @@ def handle_mcp(command: str, context: Dict) -> bool:
     aliases=[],
     category="config",
     detailed_help="Manage specialized agent personas with custom system prompts.\n"
-                  "Actions:\n"
-                  "  list                 - List saved agents\n"
-                  "  create <name> <model> - Create a new agent (interactive prompt follows)\n"
-                  "  use <name>           - Switch to a specific agent persona\n"
-                  "  delete <name>        - Delete an agent\n"
-                  "  show <name>          - Show agent details\n"
-                  "\n"
-                  "Examples:\n"
-                  "  /agent create coder llama3\n"
-                  "  /agent use coder"
+    "Actions:\n"
+    "  list                 - List saved agents\n"
+    "  create <name> <model> - Create a new agent (interactive prompt follows)\n"
+    "  use <name>           - Switch to a specific agent persona\n"
+    "  delete <name>        - Delete an agent\n"
+    "  show <name>          - Show agent details\n"
+    "\n"
+    "Examples:\n"
+    "  /agent create coder llama3\n"
+    "  /agent use coder",
 )
 def handle_agent(command: str, context: Dict) -> bool:
     """Handle /agent command."""
     from agent_cli.ui import ui
-    
+
     parts = command.split(None, 2)
     if len(parts) < 2:
         ui.print_info("Usage: /agent <list|create|use|delete|show> [args]")
         return True
-        
+
     action = parts[1].lower()
     config = context.get(CONTEXT_KEY_CONFIG)
-    
+
     if action == "list":
         agents = config.get_agents()
         if not agents:
             ui.print_info("No specialized agents found. Use /agent create to make one.")
         else:
-            rows = [[name, details.get("model", ""), details.get("system_prompt", "")[:50] + "..."] for name, details in agents.items()]
+            rows = [
+                [name, details.get("model", ""), details.get("system_prompt", "")[:50] + "..."]
+                for name, details in agents.items()
+            ]
             ui.print_table("Specialized Agents", ["Name", "Model", "System Prompt (Snippet)"], rows)
-            
+
     elif action == "create":
         if len(parts) < 3:
-             ui.print_info("Usage: /agent create <name> <model>")
-             return True
-        
+            ui.print_info("Usage: /agent create <name> <model>")
+            return True
+
         args = parts[2].split(None, 1)
         name = args[0]
         model = args[1] if len(args) > 1 else context.get(CONTEXT_KEY_MODEL)
-        
+
         ui.print_info(f"Creating agent '{name}' using model '{model}'.")
         ui.print_info("Enter the System Prompt for this agent (press Enter twice to finish):")
-        
+
         # Simple multi-line input simulation via existing session if possible, else standard loop
         lines = []
         while True:
             # We can't easily access the prompt session here without passing it or accessing global UI
             # but we have 'ui' imported.
-            line = ui.interactive_session.session.prompt([('class:prompt', '> ')])
+            line = ui.interactive_session.session.prompt([("class:prompt", "> ")])
             if not line:
                 break
             lines.append(line)
-        
+
         system_prompt = "\n".join(lines)
         config.add_agent(name, system_prompt, model)
         ui.print_success(f"Agent '{name}' created!")
-        
+
     elif action == "use":
         if len(parts) < 3:
             ui.print_info("Usage: /agent use <name>")
             # Also support resetting to default
             if ui.interactive_session and not parts[2:]:
-                 ui.print_info("To reset to default (no agent), type: /agent use default")
+                ui.print_info("To reset to default (no agent), type: /agent use default")
             return True
-            
+
         name = parts[2]
-        
+
         if name == "default":
-             # clear system prompt logic
-             context[CONTEXT_KEY_SYSTEM_PROMPT] = None
-             ui.print_success("Switched to default agent (no system prompt).")
-             return True
+            # clear system prompt logic
+            context[CONTEXT_KEY_SYSTEM_PROMPT] = None
+            ui.print_success("Switched to default agent (no system prompt).")
+            return True
 
         agent_data = config.get_agent(name)
         if agent_data:
             model = agent_data.get("model")
             system_prompt = agent_data.get("system_prompt")
-            
+
             # Update context
             context[CONTEXT_KEY_MODEL] = model
             context[CONTEXT_KEY_SYSTEM_PROMPT] = system_prompt
-            
+
             ui.print_success(f"Switched to agent '{name}' ({model})")
         else:
             ui.print_error(f"Agent '{name}' not found.")
 
     elif action == "delete":
         if len(parts) < 3:
-             ui.print_info("Usage: /agent delete <name>")
-             return True
+            ui.print_info("Usage: /agent delete <name>")
+            return True
         name = parts[2]
         if config.remove_agent(name):
             ui.print_success(f"Agent '{name}' deleted.")
         else:
             ui.print_error(f"Agent '{name}' not found.")
-            
+
     elif action == "show":
         if len(parts) < 3:
-             ui.print_info("Usage: /agent show <name>")
-             return True
+            ui.print_info("Usage: /agent show <name>")
+            return True
         name = parts[2]
         agent_data = config.get_agent(name)
         if agent_data:
-             import json
-             ui.print_markdown(f"**Agent: {name}**\n```json\n{json.dumps(agent_data, indent=2)}\n```")
+            import json
+
+            ui.print_markdown(
+                f"**Agent: {name}**\n```json\n{json.dumps(agent_data, indent=2)}\n```"
+            )
         else:
-             ui.print_error(f"Agent '{name}' not found.")
+            ui.print_error(f"Agent '{name}' not found.")
 
     else:
         ui.print_error(f"Unknown action: {action}")
-        
+
     return True
 
 
@@ -480,26 +493,26 @@ def handle_agent(command: str, context: Dict) -> bool:
     aliases=["sess"],
     category="session",
     detailed_help="Manage terminal session state.\n"
-                  "Each terminal remembers its last provider and model.\n"
-                  "Commands:\n"
-                  "  /session        - Show current session info\n"
-                  "  /session new   - Create a new session (clear state)\n"
-                  "  /session clear - Clear current session state\n"
-                  "  /session list  - List all active sessions"
+    "Each terminal remembers its last provider and model.\n"
+    "Commands:\n"
+    "  /session        - Show current session info\n"
+    "  /session new   - Create a new session (clear state)\n"
+    "  /session clear - Clear current session state\n"
+    "  /session list  - List all active sessions",
 )
 def handle_session(command: str, context: Dict) -> bool:
     """Handle /session command."""
     from agent_cli.session_manager import (
-        get_session_state,
-        create_new_session,
         clear_session_state,
-        list_all_sessions,
+        create_new_session,
+        get_session_state,
         get_terminal_session_id,
+        list_all_sessions,
     )
-    
+
     parts = command.split(None, 1)
     subcommand = parts[1].lower() if len(parts) > 1 else None
-    
+
     if subcommand == "new":
         session_id = create_new_session()
         ui.print_success(f"Created new session: {session_id}")
@@ -523,17 +536,17 @@ def handle_session(command: str, context: Dict) -> bool:
         # Show current session info
         session_id = get_terminal_session_id()
         state = get_session_state()
-        
+
         info = [["Session ID", session_id]]
         if state:
-            info.append(["Provider", state.get('provider', 'N/A')])
-            info.append(["Model", state.get('model', 'N/A')])
-            info.append(["Streaming", str(state.get('stream', False))])
+            info.append(["Provider", state.get("provider", "N/A")])
+            info.append(["Model", state.get("model", "N/A")])
+            info.append(["Streaming", str(state.get("stream", False))])
         else:
             info.append(["State", "(no saved state)"])
-        
+
         ui.print_table("Current Session", ["Key", "Value"], info)
-    
+
     return True
 
 
@@ -543,14 +556,14 @@ def handle_session(command: str, context: Dict) -> bool:
     usage="/theme [name]",
     category="config",
     detailed_help="List available themes or switch to a specific theme.\n"
-                  "Examples:\n"
-                  "  /theme             - List all available themes\n"
-                  "  /theme catppuccin  - Switch to Catppuccin theme"
+    "Examples:\n"
+    "  /theme             - List all available themes\n"
+    "  /theme catppuccin  - Switch to Catppuccin theme",
 )
 def handle_theme(command: str, context: Dict) -> bool:
     """Handle /theme command."""
     from agent_cli.ui import ui
-    
+
     parts = command.split(None, 1)
     if len(parts) > 1:
         new_theme = parts[1].lower()
@@ -581,13 +594,13 @@ def handle_theme(command: str, context: Dict) -> bool:
     aliases=[],
     category="config",
     detailed_help="Set a configuration value in the config file.\n"
-                  "The value will be saved to ~/.agent-cli/config.ini\n"
-                  "Examples:\n"
-                  "  /set OLLAMA_BASE_URL=http://192.168.1.100:11434\n"
-                  "  /set DEFAULT_OLLAMA_MODEL=mistral\n"
-                  "\n"
-                  "Note: API keys should be set via environment variables for security.\n"
-                  "Config file values are overridden by environment variables."
+    "The value will be saved to ~/.agent-cli/config.ini\n"
+    "Examples:\n"
+    "  /set OLLAMA_BASE_URL=http://192.168.1.100:11434\n"
+    "  /set DEFAULT_OLLAMA_MODEL=mistral\n"
+    "\n"
+    "Note: API keys should be set via environment variables for security.\n"
+    "Config file values are overridden by environment variables.",
 )
 def handle_set(command: str, context: Dict) -> bool:
     """Handle /set command."""
@@ -597,38 +610,40 @@ def handle_set(command: str, context: Dict) -> bool:
     if not config:
         ui.print_error("Configuration not available.")
         return True
-    
+
     # Parse command: /set KEY=value
     parts = command.split(None, 1)
     if len(parts) < 2:
         ui.print_info("Usage: /set <key>=<value>")
         ui.print_info("Example: /set OLLAMA_BASE_URL=http://192.168.1.100:11434")
         return True
-    
+
     # Parse key=value
     assignment = parts[1]
     if "=" not in assignment:
         ui.print_error("Invalid format. Use KEY=value")
         # Check for user confusion
         if "MODEL" in assignment.upper() or "PROVIDER" in assignment.upper():
-             ui.print_info("Did you mean to use /model or /provider?")
+            ui.print_info("Did you mean to use /model or /provider?")
         return True
-    
+
     key, value = assignment.split("=", 1)
     key = key.strip()
     value = value.strip()
-    
+
     # Validation helpers
     if key.upper() == "MODEL":
-        ui.print_warning("Setting 'MODEL' in config only changes the default. Use /model to switch immediately.")
-    
+        ui.print_warning(
+            "Setting 'MODEL' in config only changes the default. Use /model to switch immediately."
+        )
+
     # Warn about API keys
     if "API_KEY" in key.upper():
         ui.print_warning("API keys should be set via environment variables for security.")
         if not Confirm.ask("Continue anyway?", default=False, console=ui.console):
             ui.print_info("Cancelled.")
             return True
-    
+
     try:
         config.set_value(key, value)
         ui.print_success(f"Set {key} = {value}")
@@ -636,7 +651,5 @@ def handle_set(command: str, context: Dict) -> bool:
         ui.print_info("Environment variables take precedence over config file values.")
     except Exception as e:
         ui.print_error(f"Error setting configuration: {e}")
-    
+
     return True
-
-

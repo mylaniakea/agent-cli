@@ -2,6 +2,7 @@
 
 Inspired by code-puppy's command registry system, adapted for agent-cli's simpler needs.
 """
+
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
 
@@ -119,10 +120,10 @@ def get_commands_by_category() -> Dict[str, List[CommandInfo]]:
         Dictionary mapping category names to lists of CommandInfo objects.
     """
     categories: Dict[str, List[CommandInfo]] = {}
-    
+
     # Use a set to track primary names we've already added
     seen_primary_names = set()
-    
+
     for cmd_info in _COMMAND_REGISTRY.values():
         # Only add each command once (by primary name)
         if cmd_info.name not in seen_primary_names:
@@ -130,7 +131,7 @@ def get_commands_by_category() -> Dict[str, List[CommandInfo]]:
             if cmd_info.category not in categories:
                 categories[cmd_info.category] = []
             categories[cmd_info.category].append(cmd_info)
-    
+
     return categories
 
 
@@ -147,17 +148,17 @@ def handle_command(command: str, context: Optional[Dict] = None) -> bool:
     # Remove leading / if present
     if command.startswith("/"):
         command = command[1:]
-    
+
     # Split command and args
     parts = command.split(None, 1)
     cmd_name = parts[0].lower() if parts else ""
     args = parts[1] if len(parts) > 1 else ""
-    
+
     # Look up command
     cmd_info = get_command(cmd_name)
     if not cmd_info:
         return False
-    
+
     # Call handler with full command string
     try:
         return cmd_info.handler(command, context or {})
@@ -181,7 +182,7 @@ def generate_help_text(category: Optional[str] = None, command: Optional[str] = 
         cmd_info = get_command(command)
         if not cmd_info:
             return f"Command '{command}' not found."
-        
+
         help_text = f"Command: /{cmd_info.name}\n"
         help_text += f"Usage: {cmd_info.usage}\n"
         help_text += f"Description: {cmd_info.description}\n"
@@ -190,10 +191,10 @@ def generate_help_text(category: Optional[str] = None, command: Optional[str] = 
         if cmd_info.detailed_help:
             help_text += f"\n{cmd_info.detailed_help}\n"
         return help_text
-    
+
     # Show all commands
     categories = get_commands_by_category()
-    
+
     if category:
         # Show only specific category
         if category not in categories:
@@ -203,7 +204,7 @@ def generate_help_text(category: Optional[str] = None, command: Optional[str] = 
         for cmd_info in sorted(commands, key=lambda x: x.name):
             help_text += f"  {cmd_info.usage:<20} - {cmd_info.description}\n"
         return help_text
-    
+
     # Show all commands grouped by category
     help_text = "\nAvailable Commands:\n\n"
     for cat in sorted(categories.keys()):
@@ -212,6 +213,5 @@ def generate_help_text(category: Optional[str] = None, command: Optional[str] = 
         for cmd_info in sorted(commands, key=lambda x: x.name):
             help_text += f"  {cmd_info.usage:<20} - {cmd_info.description}\n"
         help_text += "\n"
-    
-    return help_text
 
+    return help_text

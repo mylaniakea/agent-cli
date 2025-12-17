@@ -1,6 +1,6 @@
 """Unit tests for session_manager module."""
+
 import os
-import pytest
 
 from agent_cli import session_manager
 

@@ -2,22 +2,21 @@
 Centralized UI module for Agent CLI using Rich and Prompt Toolkit.
 Provides styled output, spinners, themes, and interactive session management.
 """
+
 import sys
-from typing import Optional, List, Any, Dict, ContextManager
-from rich.console import Console
-from rich.theme import Theme
-from rich.markdown import Markdown
-from rich.panel import Panel
-from rich.table import Table
-from rich.status import Status
-from rich.prompt import Prompt, Confirm
-from rich.style import Style
+from typing import Any, Dict, List
 
 # Prompt Toolkit imports
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.styles import Style as PromptStyle
-from prompt_toolkit.formatted_text import HTML
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.prompt import Prompt
+from rich.status import Status
+from rich.table import Table
+from rich.theme import Theme
 
 # Define preset themes
 PRESET_THEMES = {
@@ -39,22 +38,22 @@ PRESET_THEMES = {
         "completion-menu.meta.completion.current": "white on cyan",
         "prompt.border": "blue",
         "prompt.text": "bold white",
-        "border.pattern": "solid", # solid, hashed, morse
+        "border.pattern": "solid",  # solid, hashed, morse
     },
     "catppuccin": {
-        "info": "#89b4fa",       # blue
-        "warning": "#f9e2af",    # yellow
-        "error": "#f38ba8",      # red
-        "success": "#a6e3a1",    # green
-        "prompt": "#cba6f7",     # mauve
-        "user_input": "#cdd6f4", # text
+        "info": "#89b4fa",  # blue
+        "warning": "#f9e2af",  # yellow
+        "error": "#f38ba8",  # red
+        "success": "#a6e3a1",  # green
+        "prompt": "#cba6f7",  # mauve
+        "user_input": "#cdd6f4",  # text
         "assistant": "#a6e3a1",  # green
-        "code": "#6c7086",       # overlay0
-        "header": "#89b4fa",     # blue
-        "panel.border": "#cba6f7", # mauve
-        "status.bar": "#1e1e2e on #89b4fa", # base on blue
+        "code": "#6c7086",  # overlay0
+        "header": "#89b4fa",  # blue
+        "panel.border": "#cba6f7",  # mauve
+        "status.bar": "#1e1e2e on #89b4fa",  # base on blue
         "completion-menu.completion": "#cdd6f4 on #1e1e2e",
-        "completion-menu.completion.current": "#1e1e2e on #cba6f7", 
+        "completion-menu.completion.current": "#1e1e2e on #cba6f7",
         "completion-menu.meta.completion": "#cdd6f4 on #1e1e2e",
         "completion-menu.meta.completion.current": "#1e1e2e on #cba6f7",
         "prompt.border": "#cba6f7",
@@ -62,17 +61,17 @@ PRESET_THEMES = {
         "border.pattern": "hashed",
     },
     "dracula": {
-        "info": "#8be9fd",       # cyan
-        "warning": "#f1fa8c",    # yellow
-        "error": "#ff5555",      # red
-        "success": "#50fa7b",    # green
-        "prompt": "#bd93f9",     # purple
-        "user_input": "#f8f8f2", # foreground
+        "info": "#8be9fd",  # cyan
+        "warning": "#f1fa8c",  # yellow
+        "error": "#ff5555",  # red
+        "success": "#50fa7b",  # green
+        "prompt": "#bd93f9",  # purple
+        "user_input": "#f8f8f2",  # foreground
         "assistant": "#50fa7b",  # green
-        "code": "#6272a4",       # comment
-        "header": "#bd93f9",     # purple
-        "panel.border": "#bd93f9", # purple
-        "status.bar": "#282a36 on #bd93f9", # background on purple
+        "code": "#6272a4",  # comment
+        "header": "#bd93f9",  # purple
+        "panel.border": "#bd93f9",  # purple
+        "status.bar": "#282a36 on #bd93f9",  # background on purple
         "completion-menu.completion": "#f8f8f2 on #282a36",
         "completion-menu.completion.current": "#282a36 on #bd93f9",
         "completion-menu.meta.completion": "#f8f8f2 on #282a36",
@@ -82,15 +81,15 @@ PRESET_THEMES = {
         "border.pattern": "morse",
     },
     "monokai": {
-        "info": "#66d9ef",       # blue
-        "warning": "#fd971f",    # orange
-        "error": "#f92672",      # pink
-        "success": "#a6e22e",    # green
-        "prompt": "#ae81ff",     # purple
-        "user_input": "#f8f8f2", # white
+        "info": "#66d9ef",  # blue
+        "warning": "#fd971f",  # orange
+        "error": "#f92672",  # pink
+        "success": "#a6e22e",  # green
+        "prompt": "#ae81ff",  # purple
+        "user_input": "#f8f8f2",  # white
         "assistant": "#a6e22e",  # green
-        "code": "#75715e",       # grey
-        "header": "#66d9ef",     # blue
+        "code": "#75715e",  # grey
+        "header": "#66d9ef",  # blue
         "panel.border": "#ae81ff",
         "status.bar": "#272822 on #66d9ef",
         "completion-menu.completion": "#f8f8f2 on #272822",
@@ -122,15 +121,15 @@ PRESET_THEMES = {
         "border.pattern": "solid",
     },
     "solarized": {
-        "info": "#268bd2",       # blue
-        "warning": "#b58900",    # yellow
-        "error": "#dc322f",      # red
-        "success": "#859900",    # green
-        "prompt": "#2aa198",     # cyan
-        "user_input": "#839496", # base0
+        "info": "#268bd2",  # blue
+        "warning": "#b58900",  # yellow
+        "error": "#dc322f",  # red
+        "success": "#859900",  # green
+        "prompt": "#2aa198",  # cyan
+        "user_input": "#839496",  # base0
         "assistant": "#859900",  # green
-        "code": "#586e75",       # base01
-        "header": "#268bd2",     # blue
+        "code": "#586e75",  # base01
+        "header": "#268bd2",  # blue
         "panel.border": "#2aa198",
         "status.bar": "#002b36 on #2aa198",
         "completion-menu.completion": "#839496 on #002b36",
@@ -142,15 +141,15 @@ PRESET_THEMES = {
         "border.pattern": "hashed",
     },
     "nord": {
-        "info": "#88c0d0",       # cyan
-        "warning": "#ebcb8b",    # yellow
-        "error": "#bf616a",      # red
-        "success": "#a3be8c",    # green
-        "prompt": "#81a1c1",     # blue
-        "user_input": "#eceff4", # white
+        "info": "#88c0d0",  # cyan
+        "warning": "#ebcb8b",  # yellow
+        "error": "#bf616a",  # red
+        "success": "#a3be8c",  # green
+        "prompt": "#81a1c1",  # blue
+        "user_input": "#eceff4",  # white
         "assistant": "#a3be8c",  # green
-        "code": "#4c566a",       # bright black
-        "header": "#88c0d0",     # cyan
+        "code": "#4c566a",  # bright black
+        "header": "#88c0d0",  # cyan
         "panel.border": "#81a1c1",
         "status.bar": "#2e3440 on #88c0d0",
         "completion-menu.completion": "#eceff4 on #2e3440",
@@ -162,15 +161,15 @@ PRESET_THEMES = {
         "border.pattern": "morse",
     },
     "gruvbox": {
-        "info": "#83a598",       # blue
-        "warning": "#fabd2f",    # yellow
-        "error": "#fb4934",      # red
-        "success": "#b8bb26",    # green
-        "prompt": "#d3869b",     # purple
-        "user_input": "#ebdbb2", # white
+        "info": "#83a598",  # blue
+        "warning": "#fabd2f",  # yellow
+        "error": "#fb4934",  # red
+        "success": "#b8bb26",  # green
+        "prompt": "#d3869b",  # purple
+        "user_input": "#ebdbb2",  # white
         "assistant": "#b8bb26",  # green
-        "code": "#928374",       # gray
-        "header": "#83a598",     # blue
+        "code": "#928374",  # gray
+        "header": "#83a598",  # blue
         "panel.border": "#d3869b",
         "status.bar": "#282828 on #83a598",
         "completion-menu.completion": "#ebdbb2 on #282828",
@@ -182,15 +181,15 @@ PRESET_THEMES = {
         "border.pattern": "solid",
     },
     "tokyo-night": {
-        "info": "#7dcfff",       # cyan
-        "warning": "#e0af68",    # yellow
-        "error": "#f7768e",      # red
-        "success": "#9ece6a",    # green
-        "prompt": "#bb9af7",     # purple
-        "user_input": "#c0caf5", # white
+        "info": "#7dcfff",  # cyan
+        "warning": "#e0af68",  # yellow
+        "error": "#f7768e",  # red
+        "success": "#9ece6a",  # green
+        "prompt": "#bb9af7",  # purple
+        "user_input": "#c0caf5",  # white
         "assistant": "#9ece6a",  # green
-        "code": "#565f89",       # comment
-        "header": "#7aa2f7",     # blue
+        "code": "#565f89",  # comment
+        "header": "#7aa2f7",  # blue
         "panel.border": "#bb9af7",
         "status.bar": "#1a1b26 on #7aa2f7",
         "completion-menu.completion": "#c0caf5 on #1a1b26",
@@ -202,15 +201,15 @@ PRESET_THEMES = {
         "border.pattern": "hashed",
     },
     "one-dark": {
-        "info": "#61afef",       # blue
-        "warning": "#e5c07b",    # yellow
-        "error": "#e06c75",      # red
-        "success": "#98c379",    # green
-        "prompt": "#c678dd",     # purple
-        "user_input": "#abb2bf", # white
+        "info": "#61afef",  # blue
+        "warning": "#e5c07b",  # yellow
+        "error": "#e06c75",  # red
+        "success": "#98c379",  # green
+        "prompt": "#c678dd",  # purple
+        "user_input": "#abb2bf",  # white
         "assistant": "#98c379",  # green
-        "code": "#5c6370",       # grey
-        "header": "#61afef",     # blue
+        "code": "#5c6370",  # grey
+        "header": "#61afef",  # blue
         "panel.border": "#c678dd",
         "status.bar": "#282c34 on #61afef",
         "completion-menu.completion": "#abb2bf on #282c34",
@@ -222,15 +221,15 @@ PRESET_THEMES = {
         "border.pattern": "morse",
     },
     "synthwave": {
-        "info": "#36f9f6",       # cyan neon
-        "warning": "#f9d336",    # yellow neon
-        "error": "#ff2a6d",      # pink neon
-        "success": "#05ffa1",    # green neon
-        "prompt": "#b967ff",     # purple neon
-        "user_input": "#ffffff", # white
+        "info": "#36f9f6",  # cyan neon
+        "warning": "#f9d336",  # yellow neon
+        "error": "#ff2a6d",  # pink neon
+        "success": "#05ffa1",  # green neon
+        "prompt": "#b967ff",  # purple neon
+        "user_input": "#ffffff",  # white
         "assistant": "#05ffa1",  # green
-        "code": "#2b2b2b",       # dark grey
-        "header": "#36f9f6",     # cyan neon
+        "code": "#2b2b2b",  # dark grey
+        "header": "#36f9f6",  # cyan neon
         "panel.border": "#b967ff",
         "status.bar": "#120458 on #ff2a6d",
         "completion-menu.completion": "#ffffff on #120458",
@@ -240,29 +239,30 @@ PRESET_THEMES = {
         "prompt.border": "#b967ff",
         "prompt.text": "#ffffff",
         "border.pattern": "solid",
-    }
+    },
 }
+
 
 class ThemeManager:
     """Manages UI themes."""
-    
+
     def __init__(self, console: Console):
         self.console = console
         self.current_theme_name = "default"
-        self.current_theme_data = PRESET_THEMES["default"] # Store full data
-        
+        self.current_theme_data = PRESET_THEMES["default"]  # Store full data
+
     def set_theme(self, theme_name: str):
         """Set the current theme."""
         if theme_name not in PRESET_THEMES:
             raise ValueError(f"Theme '{theme_name}' not found.")
-        
+
         self.current_theme_name = theme_name
         self.current_theme_data = PRESET_THEMES[theme_name]
-        
+
         # Filter out non-style keys before creating Rich Theme
         styles = {k: v for k, v in self.current_theme_data.items() if k != "border.pattern"}
         self.console.push_theme(Theme(styles, inherit=False))
-        
+
     def get_available_themes(self) -> List[str]:
         """Get list of available themes."""
         return list(PRESET_THEMES.keys())
@@ -271,7 +271,7 @@ class ThemeManager:
         """Get a prompt_toolkit style object matching the current theme."""
         # Map Rich styles to prompt_toolkit styles
         rich_styles = self.current_theme_data
-        
+
         def convert_style(rich_style: str) -> str:
             """Convert 'fg on bg' to 'fg bg:bg'."""
             if " on " in rich_style:
@@ -281,47 +281,53 @@ class ThemeManager:
 
         # Basic style from prompt/toolbar colors
         base_style = {
-            'prompt': convert_style(rich_styles['prompt']),
-            'bottom-toolbar': convert_style(rich_styles.get('status.bar', 'reverse')),
-            'bottom-toolbar.text': '#ffffff',
+            "prompt": convert_style(rich_styles["prompt"]),
+            "bottom-toolbar": convert_style(rich_styles.get("status.bar", "reverse")),
+            "bottom-toolbar.text": "#ffffff",
             # Add borders
-            'prompt.border': convert_style(rich_styles.get('prompt.border', rich_styles['prompt'])),
-            'prompt.text': convert_style(rich_styles.get('prompt.text', '#ffffff')),
+            "prompt.border": convert_style(rich_styles.get("prompt.border", rich_styles["prompt"])),
+            "prompt.text": convert_style(rich_styles.get("prompt.text", "#ffffff")),
         }
-        
+
         # Add completion menu styles if defined (using direct mapping)
         # prompt_toolkit expects exact class names
-        if 'completion-menu.completion' in rich_styles:
-            base_style['completion-menu.completion'] = convert_style(rich_styles['completion-menu.completion'])
-            base_style['completion-menu.completion.current'] = convert_style(rich_styles['completion-menu.completion.current'])
-            base_style['completion-menu.meta.completion'] = convert_style(rich_styles['completion-menu.meta.completion'])
-            base_style['completion-menu.meta.completion.current'] = convert_style(rich_styles['completion-menu.meta.completion.current'])
-            
-        return PromptStyle.from_dict(base_style)
-        
+        if "completion-menu.completion" in rich_styles:
+            base_style["completion-menu.completion"] = convert_style(
+                rich_styles["completion-menu.completion"]
+            )
+            base_style["completion-menu.completion.current"] = convert_style(
+                rich_styles["completion-menu.completion.current"]
+            )
+            base_style["completion-menu.meta.completion"] = convert_style(
+                rich_styles["completion-menu.meta.completion"]
+            )
+            base_style["completion-menu.meta.completion.current"] = convert_style(
+                rich_styles["completion-menu.meta.completion.current"]
+            )
 
-from prompt_toolkit.shortcuts import PromptSession, CompleteStyle
-from prompt_toolkit.completion import Completer, Completion
-from prompt_toolkit.formatted_text import HTML
-from typing import Dict, Any
+        return PromptStyle.from_dict(base_style)
+
+
+from prompt_toolkit.shortcuts import CompleteStyle, PromptSession
+
 
 class InteractiveSession:
     """Manages the interactive prompt session."""
-    
+
     class SlashCommandCompleter(Completer):
         """Custom completer for slash commands to handle / prefix correctly."""
-        
+
         def __init__(self, commands: Dict[str, Any], ui_manager):
             self.commands = commands
             self.ui = ui_manager
 
         def get_completions(self, document, complete_event):
             text = document.text_before_cursor
-            
+
             # If line works with slash
             if text.startswith("/"):
                 parts = text.split()
-                
+
                 # Case 1: Typing the command itself (e.g. "/mod")
                 if len(parts) <= 1 and (not text.endswith(" ")):
                     current = parts[0] if parts else "/"
@@ -329,7 +335,7 @@ class InteractiveSession:
                         if cmd.startswith(current):
                             # Remove the slash for display if needed, but yield full command
                             yield Completion(cmd, start_position=-len(current))
-                            
+
                 # Case 2: Typing arguments (e.g. "/model gpt")
                 elif len(parts) >= 1:
                     cmd = parts[0]
@@ -339,13 +345,13 @@ class InteractiveSession:
                         if isinstance(sub, dict):
                             # Get the current arg text
                             # text is "/model gpt" -> arg is "gpt"
-                            # But wait, parts include the cmd. 
+                            # But wait, parts include the cmd.
                             # If text ends with space, we are at start of new arg.
                             if text.endswith(" "):
                                 current_arg = ""
                             else:
                                 current_arg = parts[-1]
-                                
+
                             for sub_cmd in sub.keys():
                                 if sub_cmd.startswith(current_arg):
                                     yield Completion(sub_cmd, start_position=-len(current_arg))
@@ -363,12 +369,12 @@ class InteractiveSession:
             "default_openai_model": None,
             "default_anthropic_model": None,
             "default_google_model": None,
-            "THEME": None
+            "THEME": None,
         }
-        
+
         self.completer_dict = {
             "/help": None,
-            "/model": None, 
+            "/model": None,
             "/provider": {"ollama": None, "openai": None, "anthropic": None, "google": None},
             "/stream": {"true": None, "false": None},
             "/clear": None,
@@ -384,126 +390,131 @@ class InteractiveSession:
             "/compress": None,
             "/beads": {"status": None, "context": None},
             "exit": None,
-            "quit": None
+            "quit": None,
         }
-        
-        self.slash_completer = InteractiveSession.SlashCommandCompleter(self.completer_dict, self.ui)
-        
+
+        self.slash_completer = InteractiveSession.SlashCommandCompleter(
+            self.completer_dict, self.ui
+        )
+
         self.session = PromptSession(
             completer=self.slash_completer,
             style=self.ui.theme_manager.get_current_style_for_prompt(),
             complete_while_typing=True,
-            complete_style=CompleteStyle.MULTI_COLUMN 
+            complete_style=CompleteStyle.MULTI_COLUMN,
         )
         self.provider = "Unknown"
         self.model = "Unknown"
         self.is_connected = False
-        
+
     def update_status(self, provider: str, model: str, connected: bool = True):
         """Update status bar info."""
         self.provider = provider
         self.model = model
         self.is_connected = connected
-        
+
     def update_completion_models(self, models: List[str]):
         """Update the list of models for autocomplete."""
         # Update the dict directly
         self.completer_dict["/model"] = {m: None for m in models}
         # Re-initialize completer with updated dict
         self.slash_completer.commands = self.completer_dict
-        
+
     def _get_toolbar_tokens(self):
         """Generate tokens for the bottom status toolbar."""
         # Define styles for the toolbar components
         style_model = "class:toolbar.model"
-        style_stats = "class:toolbar.stats" 
+        style_stats = "class:toolbar.stats"
         style_timer = "class:toolbar.timer"
         style_meta = "class:toolbar.meta"
-        
+
         tokens = []
-        
+
         # Connection status indicator
         conn_symbol = "*" if self.is_connected else "x"
         conn_color = "ansigreen" if self.is_connected else "ansired"
         tokens.append((f"fg:{conn_color}", f" {conn_symbol} "))
-        
+
         # Model & Provider
         tokens.append((style_model, f"{self.model} "))
         tokens.append((style_meta, f"({self.provider})"))
-        
+
         # Usage Stats
-        if hasattr(self, 'agent') and hasattr(self.agent, 'get_last_usage'):
+        if hasattr(self, "agent") and hasattr(self.agent, "get_last_usage"):
             usage = self.agent.get_last_usage()
-            if usage['total_tokens'] > 0:
-                p = usage['prompt_tokens']
-                c = usage['completion_tokens']
-                t = usage['total_tokens']
+            if usage["total_tokens"] > 0:
+                p = usage["prompt_tokens"]
+                c = usage["completion_tokens"]
+                t = usage["total_tokens"]
                 tokens.append((style_stats, f" | In:{p} Out:{c} Total:{t}"))
-        
+
         # Timer
-        if hasattr(self, 'agent') and hasattr(self.agent, 'get_time_remaining'):
+        if hasattr(self, "agent") and hasattr(self.agent, "get_time_remaining"):
             remaining = self.agent.get_time_remaining()
             if remaining:
-                 tokens.append((style_stats, " | Expires: "))
-                 if remaining == "Expired":
-                     tokens.append(("ansired bold", remaining))
-                 else:
-                     tokens.append((style_timer, remaining))
-                     
+                tokens.append((style_stats, " | Expires: "))
+                if remaining == "Expired":
+                    tokens.append(("ansired bold", remaining))
+                else:
+                    tokens.append((style_timer, remaining))
+
         return tokens
 
     def prompt(self, default: str = "") -> str:
         """Get input from user with encapsulated style."""
         # Update style before prompt in case theme changed
         self.session.style = self.ui.theme_manager.get_current_style_for_prompt()
-        
+
         # Get border properties from current theme
         theme_name = self.ui.theme_manager.current_theme_name
-        
+
         # --- SIMPLE THEME (No Box) ---
-        if theme_name == 'simple':
-             # Function to generate status bar content (Keep status bar in simple mode)
+        if theme_name == "simple":
+            # Function to generate status bar content (Keep status bar in simple mode)
             def get_bottom_toolbar_simple():
                 return self._get_toolbar_tokens()
-            
+
             # Minimal toolbar style
             from prompt_toolkit.styles import Style, merge_styles
-            simple_toolbar = Style.from_dict({
-                'bottom-toolbar': 'noreverse', 
-                'toolbar.model': 'bold',
-                'toolbar.stats': '#888888',
-                'toolbar.timer': 'ansiyellow',
-                'toolbar.meta': 'italic #888888',
-            })
+
+            simple_toolbar = Style.from_dict(
+                {
+                    "bottom-toolbar": "noreverse",
+                    "toolbar.model": "bold",
+                    "toolbar.stats": "#888888",
+                    "toolbar.timer": "ansiyellow",
+                    "toolbar.meta": "italic #888888",
+                }
+            )
             final_style = merge_styles([self.session.style, simple_toolbar])
 
             return self.session.prompt(
-                [('class:prompt.text', '>>> ')],
+                [("class:prompt.text", ">>> ")],
                 bottom_toolbar=get_bottom_toolbar_simple,
                 style=final_style,
-                refresh_interval=1.0
+                refresh_interval=1.0,
             )
-            
+
         # --- BOXED THEME (Standard) ---
         rich_styles = PRESET_THEMES[theme_name]
-        border_color = rich_styles.get('prompt.border', 'blue') 
-        border_pattern = rich_styles.get('border.pattern', 'solid')
-        
+        border_color = rich_styles.get("prompt.border", "blue")
+        border_pattern = rich_styles.get("border.pattern", "solid")
+
         # Define patterns
-        if border_pattern == 'morse':
+        if border_pattern == "morse":
             char = ".-"
-        elif border_pattern == 'hashed':
+        elif border_pattern == "hashed":
             char = "//"
-        else: # solid
+        else:  # solid
             char = "─"
-            
+
         # Create borders using console width
         width = self.ui.console.width
-        
+
         # Helper to generate border line
         def make_border(start_char, end_char):
-            target_len = max(0, width - 2) 
-            if border_pattern == 'solid':
+            target_len = max(0, width - 2)
+            if border_pattern == "solid":
                 b_str = (char * target_len)[:target_len]
             else:
                 repeats = (target_len // len(char)) + 1
@@ -515,63 +526,64 @@ class InteractiveSession:
 
         # Print top border using Rich
         self.ui.console.print(f"[{border_color}]{top_border}[/{border_color}]")
-        
+
         # Function to generate status bar content
         def get_bottom_toolbar():
             return self._get_toolbar_tokens()
-            
+
         # Function for right border
         def get_rprompt():
-            return [('class:rprompt', '│')]
+            return [("class:rprompt", "│")]
 
         # Define custom style for toolbar
         from prompt_toolkit.styles import Style, merge_styles
-        
+
         # Base style from theme manager
         base_style = self.ui.theme_manager.get_current_style_for_prompt()
-        
+
         # Toolbar style
-        toolbar_style = Style.from_dict({
-            'bottom-toolbar': 'noreverse', # Container
-            'toolbar.model': 'bold',
-            'toolbar.stats': '#888888',
-            'toolbar.timer': 'ansiyellow',
-            'toolbar.meta': 'italic #888888',
-            'rprompt': f'{border_color} bg:default',
-            # Ensure prompt border is styled
-            'prompt.border': border_color,
-        })
-        
+        toolbar_style = Style.from_dict(
+            {
+                "bottom-toolbar": "noreverse",  # Container
+                "toolbar.model": "bold",
+                "toolbar.stats": "#888888",
+                "toolbar.timer": "ansiyellow",
+                "toolbar.meta": "italic #888888",
+                "rprompt": f"{border_color} bg:default",
+                # Ensure prompt border is styled
+                "prompt.border": border_color,
+            }
+        )
+
         final_style = merge_styles([base_style, toolbar_style])
 
         # Use a prompt that mimics a left border
         result = self.session.prompt(
-            [
-                ('class:prompt.border', '│ '),
-                ('class:prompt.text', 'You ➜ ') 
-            ],
+            [("class:prompt.border", "│ "), ("class:prompt.text", "You ➜ ")],
             bottom_toolbar=get_bottom_toolbar,
             rprompt=get_rprompt,
             style=final_style,
-            refresh_interval=1.0 # Update timer every second
+            refresh_interval=1.0,  # Update timer every second
         )
-        
+
         # Print bottom border to close the box (for history)
         self.ui.console.print(f"[{border_color}]{bottom_border_str}[/{border_color}]")
-        
+
         return result
 
 
 class UI:
     """Centralized UI manager."""
-    
+
     def __init__(self):
         # Filter default theme styles
-        default_styles = {k: v for k, v in PRESET_THEMES["default"].items() if k != "border.pattern"}
+        default_styles = {
+            k: v for k, v in PRESET_THEMES["default"].items() if k != "border.pattern"
+        }
         self.console = Console(theme=Theme(default_styles))
         self.theme_manager = ThemeManager(self.console)
         self.interactive_session = InteractiveSession(self)
-        
+
     def print_welcome(self):
         """Print the welcome banner."""
         title = r"""
@@ -582,11 +594,13 @@ class UI:
 /_/   \_\__, |\___|_| |_|\__|  \____|_____|___|
         |___/                                  
         """
-        self.console.print(Panel(
-            f"[bold blue]{title}[/bold blue]\n[dim]Interactive AI Agent CLI[/dim]",
-            border_style="panel.border",
-            expand=False
-        ))
+        self.console.print(
+            Panel(
+                f"[bold blue]{title}[/bold blue]\n[dim]Interactive AI Agent CLI[/dim]",
+                border_style="panel.border",
+                expand=False,
+            )
+        )
         self.console.print("\nType [bold cyan]/help[/bold cyan] to see available commands.\n")
 
     def print_markdown(self, text: str):
@@ -601,7 +615,7 @@ class UI:
     def print_success(self, text: str):
         """Print a success message."""
         self.console.print(f"[success]Success:[/success] {text}")
-        
+
     def print_warning(self, text: str):
         """Print a warning message."""
         self.console.print(f"[warning]Warning:[/warning] {text}")
@@ -631,15 +645,17 @@ class UI:
         """Print a completed agent response."""
         # Get dynamic status subtitle from session
         subtitle = self.interactive_session._get_status_subtitle()
-        
-        self.console.print(Panel(
-            Markdown(text),
-            title=f"[assistant]AI Response[/assistant]", # Generic title or user pref
-            subtitle=subtitle,
-            subtitle_align="left",
-            border_style="assistant",
-            expand=False
-        ))
+
+        self.console.print(
+            Panel(
+                Markdown(text),
+                title="[assistant]AI Response[/assistant]",  # Generic title or user pref
+                subtitle=subtitle,
+                subtitle_align="left",
+                border_style="assistant",
+                expand=False,
+            )
+        )
 
     def print_stream_chunk(self, chunk: str):
         """Print a chunk of streamed text (simple version)."""
@@ -648,6 +664,7 @@ class UI:
     def flush(self):
         """Flush the console output."""
         sys.stdout.flush()
+
 
 # Global UI instance
 ui = UI()
