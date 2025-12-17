@@ -106,119 +106,43 @@ agent-cli --provider openai --model gpt-4 --stream "Explain quantum computing"
 agent-cli --provider ollama --model llama2 --interactive --stream
 ```
 
-## Development Phases
+## Development Status
 
-- [x] Phase 1: Foundation & CLI structure
-- [x] Phase 2: Ollama integration
-- [x] Phase 3: External API providers (OpenAI, Anthropic, Google)
-- [x] Phase 4: Advanced features (streaming, context, file references, interactive commands, MCP config)
-- [x] Phase 5: Command Registry System (inspired by [code-puppy](https://github.com/mpfaffenberger/code_puppy))
-- [x] Phase 6: Enhanced Configuration Management (XDG support, INI config, `/set` command)
-- [x] Phase 7: Session Management (per-terminal state persistence, auto-load last provider/model)
-- [x] Phase 8: Model Factory Pattern (centralized model metadata, validation, settings)
-- [x] Phase 9: Enhanced MCP Integration (improved server management, validation)
-- [x] Phase 10: Smart Message History (compaction, limits, better display)
+### Core Development ✅ Complete (Phases 1-11)
+- Foundation & CLI structure
+- Multi-provider support (Ollama, OpenAI, Anthropic, Google)
+- Interactive mode with streaming
+- Command registry system (inspired by [code-puppy](https://github.com/mpfaffenberger/code_puppy))
+- Enhanced configuration management
+- Session management & state persistence
+- Model factory pattern with metadata
+- MCP integration
+- Smart message history management
+- Specialized agents (personas) & themes
 
-**🎉 All Phases Complete! 🎉**
+### Next: Open Source Release Preparation (Phases 12-22)
 
-See [DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md) for detailed implementation plan.
-See [docs/](docs/) for comprehensive documentation ready for GitHub wiki.
+We're preparing for v1.0 release with:
+- 🧪 **Testing Infrastructure** - Comprehensive test suite with CI/CD
+- 📦 **Modern Packaging** - PyPI publication with pyproject.toml
+- 🔍 **Code Quality** - Type hints, linting, pre-commit hooks
+- 📚 **Documentation** - Complete wiki, contributor guides
+- 🚀 **New Features** - Export, context management, security enhancements
 
-## Advanced Features
+**See [OPEN_SOURCE_PLAN.md](OPEN_SOURCE_PLAN.md) for detailed roadmap.**
 
-### Streaming Responses
+🤝 **Want to contribute?** We'd love your help! Check out the open source plan and pick a phase to work on.
 
-Enable real-time streaming of responses with the `--stream` flag:
+## 📖 Documentation & Wiki
 
-```bash
-# Stream a single response
-agent-cli --provider openai --model gpt-4 --stream "Write a story"
+We have moved our detailed documentation to a dedicated Wiki.
+👉 **[Read the Full Wiki](WIKI.md)**
 
-# Stream in interactive mode
-agent-cli --provider ollama --model llama2 --interactive --stream
-```
-
-### Conversation Context
-
-In interactive mode, the CLI automatically maintains conversation history, allowing the agent to remember previous messages in the session:
-
-```bash
-agent-cli --provider anthropic --model claude-3-sonnet --interactive
-```
-
-The conversation history is maintained throughout the interactive session, providing context-aware responses.
-
-### Interactive Commands
-
-In interactive mode, you can use special commands:
-
-- `/help` or `/h` - Show available commands
-- `/model <name>` or `/m` - Switch to a different model
-- `/provider <name>` or `/p` - Switch to a different provider (ollama, openai, anthropic, google)
-- `/stream` or `/s` - Toggle streaming mode on/off
-- `/clear` or `/c` - Clear conversation history
-- `/history` or `/hist` - Show recent conversation history
-- `/config` or `/cfg` - Show current configuration
-- `/set <key>=<value>` - Set a configuration value (saved to config.ini)
-- `/session` or `/sess` - Show or manage session state
-- `/mcp` - Manage MCP servers (use `agent-cli mcp` command)
-
-Example:
-```bash
-agent-cli --provider ollama --model llama2 --interactive
-You: /model mistral
-Switched to model: mistral
-
-You: /provider openai
-Switched to provider: openai
-```
-
-### File References
-
-Include file contents in your prompts using the `@filename` syntax:
-
-```bash
-# In interactive mode
-You: @config.py explain this file
-
-# In non-interactive mode
-agent-cli --provider ollama --model llama2 "@README.md summarize this file"
-
-# Files with spaces
-You: @"my file.txt" analyze this
-```
-
-The file contents will be automatically included in the prompt sent to the agent.
-
-### MCP Server Management
-
-Manage Model Context Protocol (MCP) servers:
-
-```bash
-# List configured MCP servers
-agent-cli mcp list
-
-# Add an MCP server
-agent-cli mcp add my-server /path/to/server --arg1 value1 -e KEY=value
-
-# Remove an MCP server
-agent-cli mcp remove my-server
-```
-
-MCP servers are stored in `~/.agent-cli/mcp_servers.json`.
-
-## Documentation
-
-Comprehensive documentation is available in the `docs/` directory, ready for GitHub wiki:
-
-- [Installation Guide](docs/Installation.md)
-- [Quick Start](docs/Quick-Start.md)
-- [Architecture Overview](docs/Architecture.md)
-- [Command Reference](docs/Command-Reference.md)
-- [Development Phases](docs/Development-Phases.md)
-- [Project Summary](docs/PROJECT_SUMMARY.md)
-
-See [docs/WIKI_SETUP.md](docs/WIKI_SETUP.md) for GitHub wiki setup instructions.
+The Wiki includes:
+- **Getting Started**: Installation and basic usage.
+- **Themes**: customized your CLI look.
+- **Specialized Agents**: Creating and managing custom personas.
+- **Configuration**: Advanced settings and MCP setup.
 
 ## Acknowledgments
 

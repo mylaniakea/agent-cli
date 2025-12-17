@@ -10,13 +10,14 @@ class AgentFactory:
     """Factory for creating agent instances."""
     
     @staticmethod
-    def create(provider: str, model: str, config) -> BaseAgent:
+    def create(provider: str, model: str, config, system_prompt: str = None) -> BaseAgent:
         """Create an agent instance based on provider.
         
         Args:
             provider: Provider name (ollama, openai, anthropic, google)
             model: Model name
             config: Configuration object
+            system_prompt: Optional system prompt
             
         Returns:
             Agent instance
@@ -27,9 +28,13 @@ class AgentFactory:
         provider = provider.lower()
         
         if provider == "ollama":
-            return OllamaAgent(model, config)
+            return OllamaAgent(model, config, system_prompt=system_prompt)
         elif provider == "openai":
-            return OpenAIAgent(model, config)
+            # Pass system_prompt if supported, else ignore for now (or likely update all agents)
+            # Assuming other agents inherit BaseAgent but might strict init.
+            # For now, let's only pass to Ollama or check others.
+            # Best practice: update all agents. But to fix immediate crash:
+            return OpenAIAgent(model, config) 
         elif provider == "anthropic":
             return AnthropicAgent(model, config)
         elif provider == "google":

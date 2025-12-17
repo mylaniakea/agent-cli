@@ -6,15 +6,17 @@ from typing import Iterator, List, Dict, Optional
 class BaseAgent(ABC):
     """Base class for all agent implementations."""
     
-    def __init__(self, model: str, config):
+    def __init__(self, model: str, config, system_prompt: Optional[str] = None):
         """Initialize the agent.
         
         Args:
             model: Model name to use
             config: Configuration object
+            system_prompt: Optional system personality/instructions
         """
         self.model = model
         self.config = config
+        self.system_prompt = system_prompt
     
     @abstractmethod
     def chat(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> str:

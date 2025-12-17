@@ -79,18 +79,21 @@ agent-cli --provider anthropic --model claude-3-sonnet "@README.md summarize thi
 
 ## 🎯 Project Status
 
-**Current Version**: 0.1.0
+**Current Version**: 0.1.0 (Pre-release)
 
-**Development Phases Completed**: 8/10 (80%)
-- ✅ Phase 1-4: Core functionality
-- ✅ Phase 5: Command Registry System
-- ✅ Phase 6: Enhanced Configuration Management
-- ✅ Phase 7: Session Management
-- ✅ Phase 8: Model Factory Pattern
-- 🔄 Phase 9: Enhanced MCP Integration (in progress)
-- 🔄 Phase 10: Smart Message History (in progress)
+**Core Development**: ✅ Complete (Phases 1-11)
 
-See [Development Phases](Development-Phases) for details.
+**Open Source Release Preparation**: 🚀 In Progress (Phases 12-22)
+- Phase 12: Testing Infrastructure
+- Phase 13: Modern Packaging (PyPI)
+- Phase 14: Code Quality & Type Safety
+- Phase 15: Update Model Metadata
+- Phase 16-21: Feature Enhancements
+- Phase 22: Final Release (v1.0)
+
+**Target**: v1.0 release with comprehensive testing, modern packaging, and community guidelines.
+
+See [OPEN_SOURCE_PLAN.md](../OPEN_SOURCE_PLAN.md) for detailed roadmap.
 
 ---
 

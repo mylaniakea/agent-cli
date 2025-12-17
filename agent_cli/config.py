@@ -171,10 +171,53 @@ class Config:
         return CONFIG_DIR
     
     @property
+    def agents_file(self) -> Path:
+        """Get the agents configuration file path."""
+        return CONFIG_DIR / "agents.json"
+    
+    def get_agents(self) -> Dict[str, Dict]:
+        """Get configured specialized agents (personas)."""
+        if self.agents_file.exists():
+            try:
+                with open(self.agents_file, 'r') as f:
+                    return json.load(f)
+            except Exception:
+                return {}
+        return {}
+    
+    def add_agent(self, name: str, system_prompt: str, model: str):
+        """Add or update a specialized agent (persona)."""
+        agents = self.get_agents()
+        agents[name] = {
+            "system_prompt": system_prompt,
+            "model": model
+        }
+        with open(self.agents_file, 'w') as f:
+            json.dump(agents, f, indent=2)
+    
+    def remove_agent(self, name: str) -> bool:
+        """Remove a specialized agent."""
+        agents = self.get_agents()
+        if name in agents:
+            del agents[name]
+            with open(self.agents_file, 'w') as f:
+                json.dump(agents, f, indent=2)
+            return True
+        return False
+
+    def get_agent(self, name: str) -> Optional[Dict]:
+        """Get details for a specific agent."""
+        return self.get_agents().get(name)
+
+    @property
     def mcp_config_file(self) -> Path:
         """Get the MCP servers configuration file path."""
         return MCP_SERVERS_FILE
     
+    def get_mcp_config(self) -> Dict[str, Dict]:
+        """Get configured MCP servers. Alias for get_mcp_servers for consistency."""
+        return self.get_mcp_servers()
+
     def get_mcp_servers(self) -> Dict[str, Dict]:
         """Get configured MCP servers."""
         if self.mcp_config_file.exists():

@@ -1,4 +1,10 @@
-# Remaining Development Phases
+# Remaining Development Phases (DEPRECATED)
+
+**⚠️ This document is outdated. See [OPEN_SOURCE_PLAN.md](OPEN_SOURCE_PLAN.md) for the current roadmap.**
+
+---
+
+# Original Remaining Development Phases
 
 ## ✅ Completed Phases
 
