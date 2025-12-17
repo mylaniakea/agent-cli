@@ -580,7 +580,7 @@ class InteractiveSession:
         )
 
         # Print bottom border to close the box
-        self.ui.console.print(f"[{border_color}]{bottom_border_str}[/{border_color}]")
+        # self.ui.console.print(f"[{border_color}]{bottom_border_str}[/{border_color}]")
 
         return result
 
