@@ -152,3 +152,40 @@ The Wiki includes:
 ## Acknowledgments
 
 This project was inspired by and borrows patterns from [code-puppy](https://github.com/mpfaffenberger/code_puppy), adapted for a simpler, provider-focused architecture.
+
+## Development
+
+### Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/mpfaffenberger/agent-cli.git
+cd agent-cli
+
+# Install with development dependencies
+make install
+```
+
+### Running Tests
+
+```bash
+make test          # Run tests with coverage
+make lint          # Check code style
+make format        # Format code
+make typecheck     # Run type checker
+make all           # Run all checks
+```
+
+### Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Inspired by [code_puppy](https://github.com/mpfaffenberger/code_puppy)
+- Built with [Rich](https://github.com/Textualize/rich) for beautiful terminal output
+- Uses [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) for interactive mode
