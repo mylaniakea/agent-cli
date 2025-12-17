@@ -32,10 +32,10 @@ PRESET_THEMES = {
         "header": "bold blue",
         "panel.border": "blue",
         "status.bar": "blue on black",
-        "completion-menu.completion": "white on blue",
-        "completion-menu.completion.current": "white on cyan",
-        "completion-menu.meta.completion": "white on blue",
-        "completion-menu.meta.completion.current": "white on cyan",
+        "completion-menu.completion": "black on #e0e0e0",
+        "completion-menu.completion.current": "white on #4a9eff",
+        "completion-menu.meta.completion": "#888888 on #f5f5f5",
+        "completion-menu.meta.completion.current": "#cccccc on #4a9eff",
         "prompt.border": "blue",
         "prompt.text": "bold white",
         "border.pattern": "solid",  # solid, hashed, morse
@@ -112,10 +112,10 @@ PRESET_THEMES = {
         "header": "ansiblue",
         "panel.border": "ansiblue",
         "status.bar": "ansiblue",
-        "completion-menu.completion": "white on blue",
-        "completion-menu.completion.current": "white on cyan",
-        "completion-menu.meta.completion": "white on blue",
-        "completion-menu.meta.completion.current": "white on cyan",
+        "completion-menu.completion": "black on #e0e0e0",
+        "completion-menu.completion.current": "white on #4a9eff",
+        "completion-menu.meta.completion": "#888888 on #f5f5f5",
+        "completion-menu.meta.completion.current": "#cccccc on #4a9eff",
         "prompt.border": "ansiwhite",
         "prompt.text": "bold ansiwhite",
         "border.pattern": "solid",
@@ -539,7 +539,9 @@ class InteractiveSession:
 
         # Function to generate status bar content
         def get_bottom_toolbar():
-            return self._get_toolbar_tokens()
+            return [("class:prompt.border", bottom_border_str)]
+
+        
 
         # Function for right border
         def get_rprompt():
