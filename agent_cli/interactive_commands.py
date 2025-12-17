@@ -918,3 +918,64 @@ def handle_log(command: str, **kwargs) -> bool:
         ui.print_error(f"Unknown subcommand: {subcommand}. Use 'list' or 'view'")
 
     return True
+
+
+@register_command(
+    name="init",
+    description="Initialize project configuration",
+    usage="/init [provider] [--format yaml|markdown]",
+    aliases=[],
+    category="config",
+)
+def handle_init(command: str, **kwargs) -> bool:
+    """Initialize project configuration file."""
+    ui = kwargs.get("ui")
+
+    if not ui:
+        return True
+
+    from agent_cli.project_config import ProjectConfig
+
+    # Parse command
+    parts = command.split()
+    provider = None
+    format_type = "markdown"  # default
+
+    for i, part in enumerate(parts[1:], 1):
+        if part.startswith("--format="):
+            format_type = part.split("=")[1]
+        elif part in ["--format", "-f"]:
+            if i + 1 < len(parts):
+                format_type = parts[i + 1]
+        elif not provider:
+            provider = part
+
+    # Validate provider
+    valid_providers = ["openai", "anthropic", "google", "ollama"]
+    if not provider or provider.lower() not in valid_providers:
+        ui.print_error(f"Please specify a provider: {', '.join(valid_providers)}")
+        ui.console.print("\nExample: /init anthropic")
+        ui.console.print("         /init google --format yaml")
+        return True
+
+    # Check if config already exists
+    existing = ProjectConfig.find_project_config()
+    if existing:
+        ui.console.print(f"\n[yellow]Warning: Project config already exists:[/yellow] {existing}")
+        response = input("Overwrite? (y/N): ").strip().lower()
+        if response != "y":
+            ui.console.print("[dim]Cancelled[/dim]")
+            return True
+
+    # Create config
+    try:
+        config_path = ProjectConfig.create_project_config(provider.lower(), format=format_type)
+        ui.print_success(f"Created project config: {config_path}")
+        ui.console.print(f"\n[cyan]Edit {config_path.name} to customize project settings[/cyan]")
+        ui.console.print(
+            "[dim]This config will be used automatically when running agent CLI in this directory[/dim]"
+        )
+    except Exception as e:
+        ui.print_error(f"Failed to create config: {e}")
+
+    return True
