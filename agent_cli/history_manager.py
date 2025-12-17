@@ -131,3 +131,41 @@ def format_history_summary(history: List[Dict[str, str]], max_lines: int = 10) -
         lines.append(f"  {i + max(0, len(history) - max_lines)}. {role}: {content}\n")
 
     return "".join(lines)
+
+
+def get_token_count(messages: list[dict[str, str]]) -> int:
+    """Get estimated token count for message history.
+
+    Args:
+        messages: List of message dicts
+
+    Returns:
+        Estimated token count
+    """
+    from agent_cli.token_counter import TokenCounter
+
+    return TokenCounter.estimate_messages_tokens(messages)
+
+
+def get_context_info(messages: list[dict[str, str]], max_context: int) -> dict[str, any]:
+    """Get context window usage information.
+
+    Args:
+        messages: List of message dicts
+        max_context: Maximum context window size
+
+    Returns:
+        Dict with context info (token_count, max_tokens, percentage, status)
+    """
+    from agent_cli.token_counter import TokenCounter
+
+    token_count = get_token_count(messages)
+    percentage, status = TokenCounter.get_context_percentage(token_count, max_context)
+
+    return {
+        "token_count": token_count,
+        "max_tokens": max_context,
+        "percentage": percentage,
+        "status": status,
+        "message_count": len(messages),
+    }

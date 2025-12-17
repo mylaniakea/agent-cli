@@ -653,3 +653,89 @@ def handle_set(command: str, context: Dict) -> bool:
         ui.print_error(f"Error setting configuration: {e}")
 
     return True
+
+
+@register_command(
+    name="context",
+    description="Show current context window usage",
+    usage="/context",
+    aliases=["ctx"],
+    category="info",
+)
+def handle_context(command: str, **kwargs) -> bool:
+    """Show context window usage information."""
+    ui = kwargs.get("ui")
+    agent = kwargs.get("agent")
+    messages = kwargs.get("messages", [])
+
+    if not ui:
+        return True
+
+    # Get model info
+    model_name = kwargs.get("model", "unknown")
+    provider = kwargs.get("provider", "unknown")
+
+    # Get max context from model metadata
+    from agent_cli.model_factory import ModelFactory
+
+    try:
+        factory = ModelFactory()
+        metadata = factory.get_model_metadata(provider, model_name)
+        max_context = metadata.context_length
+    except Exception:
+        max_context = 4096  # Default fallback
+
+    # Get context info
+    from agent_cli.history_manager import get_context_info
+    from agent_cli.token_counter import TokenCounter
+
+    info = get_context_info(messages, max_context)
+
+    # Format output
+    ui.console.print("\n[bold cyan]Context Window Usage[/bold cyan]")
+    ui.console.print(f"Model: [bold]{model_name}[/bold] ({provider})")
+    ui.console.print(f"Messages: [bold]{info['message_count']}[/bold]")
+
+    # Token usage
+    token_str = TokenCounter.format_token_count(info["token_count"])
+    max_str = TokenCounter.format_token_count(info["max_tokens"])
+
+    # Color based on status
+    if info["status"] == "critical":
+        color = "red"
+        symbol = "⚠️"
+    elif info["status"] == "warning":
+        color = "yellow"
+        symbol = "⚠"
+    else:
+        color = "green"
+        symbol = "✓"
+
+    ui.console.print(
+        f"Tokens: [{color}]{symbol} {token_str} / {max_str}[/{color}] ({info['percentage']:.1f}%)"
+    )
+
+    # Progress bar
+    from rich.progress import Progress, BarColumn, TextColumn
+
+    progress = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(bar_width=40),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        console=ui.console,
+    )
+
+    with progress:
+        task = progress.add_task("Usage", total=100, completed=info["percentage"])
+
+    # Warnings
+    if info["status"] == "critical":
+        ui.console.print("\n[bold red]⚠️  Warning: Context window is almost full![/bold red]")
+        ui.console.print("Consider using [cyan]/clear[/cyan] to reset the conversation history.")
+    elif info["status"] == "warning":
+        ui.console.print(
+            "\n[yellow]⚠  Approaching context limit. Consider clearing history soon.[/yellow]"
+        )
+
+    ui.console.print()
+    return True
