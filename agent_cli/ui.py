@@ -574,7 +574,7 @@ class UI:
         
     def print_welcome(self):
         """Print the welcome banner."""
-        title = """
+        title = r"""
     _                     _      ____ _     ___ 
    / \   __ _  ___ _ __ | |_   / ___| |   |_ _|
   / _ \ / _` |/ _ \ '_ \| __| | |   | |    | | 

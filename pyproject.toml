@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-cli"
+version = "1.0.0"
+description = "A custom LLM CLI with local and external agent support"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    {name = "Matthew", email = "matthew@mylaniakea.com"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "anthropic",
+    "click>=8.0.0",
+    "google-generativeai",
+    "openai",
+    "prompt_toolkit>=3.0.0",
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0",
+    "requests>=2.31.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+]
+
+[project.scripts]
+agent = "agent_cli.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=agent_cli --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["agent_cli"]
+omit = ["*/tests/*", "*/test_*.py"]
