@@ -116,6 +116,23 @@ def chat(provider, model, interactive, stream, prompt):
 
     # Use provided values, or fall back to session state (for interactive mode)
     if interactive:
+        # Check if first-run onboarding is needed
+        from agent_cli.interactive_onboarding import maybe_run_onboarding
+        from rich.console import Console
+        onboarding_provider = maybe_run_onboarding(Console())
+        if onboarding_provider:
+            # Use the provider from onboarding
+            current_provider = onboarding_provider
+            config = Config()  # Reload config to pick up new env vars
+            if onboarding_provider == "ollama":
+                current_model = config.default_ollama_model
+            elif onboarding_provider == "openai":
+                current_model = config.default_openai_model
+            elif onboarding_provider == "anthropic":
+                current_model = config.default_anthropic_model
+            elif onboarding_provider == "google":
+                current_model = config.default_google_model
+        
         # In interactive mode, use session state if provider/model not specified
         current_provider = provider or session_state.get("provider") or "ollama"
         current_model = model or session_state.get("model") or config.default_ollama_model
