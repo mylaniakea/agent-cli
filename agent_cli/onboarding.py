@@ -1,14 +1,17 @@
 """Interactive provider onboarding flow."""
 
-from typing import Optional, Dict, List
-from rich.console import Console
-from rich.panel import Panel
-from rich.prompt import Prompt, Confirm
-from rich.markdown import Markdown
-from rich.table import Table
 import os
 from pathlib import Path
+from typing import Optional
+
 import requests
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
+from rich.table import Table
+
+from agent_cli.constants import DEFAULT_OLLAMA_HOST, DEFAULT_OLLAMA_PORT
 
 
 class ProviderOnboarding:
@@ -59,7 +62,7 @@ class ProviderOnboarding:
     def __init__(self, console: Console):
         self.console = console
 
-    def run_onboarding(self, provider: str) -> Optional[Dict[str, str]]:
+    def run_onboarding(self, provider: str) -> Optional[dict[str, str]]:
         """Run interactive onboarding for a provider.
 
         Returns dict with config if successful, None if cancelled
@@ -80,7 +83,7 @@ class ProviderOnboarding:
         # Other providers need API keys
         return self._onboard_api_provider(provider, info)
 
-    def _show_welcome(self, provider: str, info: Dict):
+    def _show_welcome(self, provider: str, info: dict):
         """Show themed welcome panel."""
         color = info["color"]
         icon = info["icon"]
@@ -115,7 +118,7 @@ Let's get you set up in just a few steps!
         except Exception:
             return False
 
-    def _get_ollama_models(self, base_url: str) -> List[str]:
+    def _get_ollama_models(self, base_url: str) -> list[str]:
         """Fetch available models from Ollama server."""
         try:
             response = requests.get(f"{base_url}/api/tags", timeout=5)
@@ -126,7 +129,7 @@ Let's get you set up in just a few steps!
             pass
         return []
 
-    def _onboard_ollama(self, info: Dict) -> Optional[Dict[str, str]]:
+    def _onboard_ollama(self, info: dict) -> Optional[dict[str, str]]:
         """Onboard Ollama (local, no API key)."""
         color = info["color"]
         self.console.print(
@@ -135,9 +138,10 @@ Let's get you set up in just a few steps!
 
         # Ask for IP/hostname
         self.console.print("[dim]Enter the Ollama server address (hostname or IP)[/dim]")
-        hostname = Prompt.ask("Hostname/IP", default="localhost", console=self.console)
+        hostname = Prompt.ask("Hostname/IP", default=DEFAULT_OLLAMA_HOST, console=self.console)
 
-        port = Prompt.ask("Port", default="11434", console=self.console)
+        self.console.print("[dim]Enter the port number (press Enter for default: 11434)[/dim]")
+        port = Prompt.ask("Port", default=DEFAULT_OLLAMA_PORT, console=self.console)
 
         base_url = f"http://{hostname}:{port}"
 
@@ -151,7 +155,7 @@ Let's get you set up in just a few steps!
                 return None
             models = []
         else:
-            self.console.print(f"[green]✓[/green] Connected successfully!\n")
+            self.console.print("[green]✓[/green] Connected successfully!\n")
 
             # Fetch available models
             self.console.print(f"[{color}]Fetching available models...[/{color}]")
@@ -182,10 +186,7 @@ Let's get you set up in just a few steps!
             # Parse selection
             try:
                 idx = int(selection)
-                if 1 <= idx <= len(models):
-                    default_model = models[idx - 1]
-                else:
-                    default_model = selection
+                default_model = models[idx - 1] if 1 <= idx <= len(models) else selection
             except ValueError:
                 default_model = selection
         else:
@@ -202,7 +203,7 @@ Let's get you set up in just a few steps!
 
         # Validate keep_alive is numeric
         try:
-            keep_alive_val = int(keep_alive)
+            int(keep_alive)
         except ValueError:
             self.console.print("[yellow]Invalid value, using default of 5 minutes[/yellow]")
             keep_alive = "5"
@@ -224,12 +225,12 @@ Let's get you set up in just a few steps!
             for key, value in config.items():
                 self._save_to_env(key, value)
 
-            self.console.print(f"\n[green]✓[/green] Saved to .env file")
+            self.console.print("\n[green]✓[/green] Saved to .env file")
             return config
 
         return None
 
-    def _onboard_api_provider(self, provider: str, info: Dict) -> Optional[Dict[str, str]]:
+    def _onboard_api_provider(self, provider: str, info: dict) -> Optional[dict[str, str]]:
         """Onboard API-based provider."""
         color = info["color"]
         api_key_name = info["api_key_name"]
@@ -281,7 +282,7 @@ Let's get you set up in just a few steps!
         # Read existing .env
         existing = {}
         if env_file.exists():
-            with open(env_file, "r") as f:
+            with open(env_file) as f:
                 for line in f:
                     line = line.strip()
                     if line and not line.startswith("#") and "=" in line:
@@ -306,7 +307,7 @@ Let's get you set up in just a few steps!
         result = onboarding.run_onboarding(provider)
 
         if result:
-            console.print(f"\n[green bold]🎉 Setup complete![/green bold]")
+            console.print("\n[green bold]🎉 Setup complete![/green bold]")
             console.print(f"[dim]You can now use: agent chat --provider {provider}[/dim]\n")
             return True
 

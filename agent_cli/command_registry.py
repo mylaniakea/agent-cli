@@ -4,7 +4,7 @@ Inspired by code-puppy's command registry system, adapted for agent-cli's simple
 """
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Optional
 
 
 @dataclass
@@ -15,7 +15,7 @@ class CommandInfo:
     description: str
     handler: Callable[[str], bool]
     usage: str = ""
-    aliases: List[str] = field(default_factory=list)
+    aliases: list[str] = field(default_factory=list)
     category: str = "core"
     detailed_help: Optional[str] = None
 
@@ -26,14 +26,14 @@ class CommandInfo:
 
 
 # Global registry: maps command name/alias -> CommandInfo
-_COMMAND_REGISTRY: Dict[str, CommandInfo] = {}
+_COMMAND_REGISTRY: dict[str, CommandInfo] = {}
 
 
 def register_command(
     name: str,
     description: str,
     usage: str = "",
-    aliases: Optional[List[str]] = None,
+    aliases: Optional[list[str]] = None,
     category: str = "core",
     detailed_help: Optional[str] = None,
 ):
@@ -92,7 +92,7 @@ def register_command(
     return decorator
 
 
-def get_all_commands() -> Dict[str, CommandInfo]:
+def get_all_commands() -> dict[str, CommandInfo]:
     """Get all registered commands.
 
     Returns:
@@ -113,13 +113,13 @@ def get_command(name: str) -> Optional[CommandInfo]:
     return _COMMAND_REGISTRY.get(name)
 
 
-def get_commands_by_category() -> Dict[str, List[CommandInfo]]:
+def get_commands_by_category() -> dict[str, list[CommandInfo]]:
     """Get all commands grouped by category.
 
     Returns:
         Dictionary mapping category names to lists of CommandInfo objects.
     """
-    categories: Dict[str, List[CommandInfo]] = {}
+    categories: dict[str, list[CommandInfo]] = {}
 
     # Use a set to track primary names we've already added
     seen_primary_names = set()
@@ -135,7 +135,7 @@ def get_commands_by_category() -> Dict[str, List[CommandInfo]]:
     return categories
 
 
-def handle_command(command: str, context: Optional[Dict] = None) -> bool:
+def handle_command(command: str, context: Optional[dict] = None) -> bool:
     """Handle a command by name.
 
     Args:
@@ -152,7 +152,7 @@ def handle_command(command: str, context: Optional[Dict] = None) -> bool:
     # Split command and args
     parts = command.split(None, 1)
     cmd_name = parts[0].lower() if parts else ""
-    args = parts[1] if len(parts) > 1 else ""
+    parts[1] if len(parts) > 1 else ""
 
     # Look up command
     cmd_info = get_command(cmd_name)

@@ -6,7 +6,6 @@ Inspired by code-puppy's session-based agent selection, adapted for agent-cli.
 import json
 import os
 from pathlib import Path
-from typing import Dict
 
 from agent_cli.config import STATE_DIR
 
@@ -48,7 +47,7 @@ def _is_process_alive(pid: int) -> bool:
             import ctypes
             from ctypes import wintypes
 
-            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000  # noqa: N806
             kernel32 = ctypes.windll.kernel32
             kernel32.OpenProcess.argtypes = [
                 wintypes.DWORD,
@@ -62,9 +61,7 @@ def _is_process_alive(pid: int) -> bool:
                 return True
             # If access denied, process likely exists but we can't query it
             last_error = kernel32.GetLastError()
-            if last_error == 5:  # ERROR_ACCESS_DENIED
-                return True
-            return False
+            return last_error == 5  # ERROR_ACCESS_DENIED
         else:
             # Unix-like: signal 0 does not deliver a signal but checks existence
             os.kill(int(pid), 0)
@@ -80,7 +77,7 @@ def _is_process_alive(pid: int) -> bool:
         return False
 
 
-def _load_sessions() -> Dict[str, Dict]:
+def _load_sessions() -> dict[str, dict]:
     """Load session data from file.
 
     Returns:
@@ -126,7 +123,7 @@ def _load_sessions() -> Dict[str, Dict]:
         return {}
 
 
-def _save_sessions(sessions: Dict[str, Dict]) -> None:
+def _save_sessions(sessions: dict[str, dict]) -> None:
     """Save session data to file.
 
     Args:
@@ -143,7 +140,7 @@ def _save_sessions(sessions: Dict[str, Dict]) -> None:
         pass
 
 
-def get_session_state() -> Dict:
+def get_session_state() -> dict:
     """Get the current session's state.
 
     Returns:
@@ -154,7 +151,7 @@ def get_session_state() -> Dict:
     return sessions.get(session_id, {})
 
 
-def save_session_state(state: Dict) -> None:
+def save_session_state(state: dict) -> None:
     """Save the current session's state.
 
     Args:
@@ -196,7 +193,7 @@ def create_new_session() -> str:
     return get_terminal_session_id()
 
 
-def list_all_sessions() -> Dict[str, Dict]:
+def list_all_sessions() -> dict[str, dict]:
     """List all active sessions.
 
     Returns:

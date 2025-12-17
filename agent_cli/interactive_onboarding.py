@@ -1,10 +1,12 @@
 """Interactive onboarding flow during app startup."""
 
-from typing import List, Dict, Optional
+from typing import Optional
+
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Confirm
-from rich.markdown import Markdown
+
 from agent_cli.onboarding import ProviderOnboarding
 
 
@@ -95,7 +97,7 @@ You can configure one or more providers:
             configured.append(provider)
 
     if configured:
-        console.print(f"\n[green bold]✅ Setup complete![/green bold]")
+        console.print("\n[green bold]✅ Setup complete![/green bold]")
         console.print(f"[dim]Configured providers: {', '.join(configured)}[/dim]\n")
         # Return first configured as default
         return configured[0]

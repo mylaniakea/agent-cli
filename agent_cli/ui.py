@@ -445,9 +445,9 @@ class InteractiveSession:
         conn_color = "ansigreen" if self.is_connected else "ansired"
         tokens.append((f"fg:{conn_color}", f" {conn_symbol} "))
 
-        # Model & Provider
-        tokens.append((style_model, f"{self.model} "))
-        tokens.append((style_meta, f"({self.provider})"))
+        # Provider icon only
+        provider_icon = self._get_provider_icon(self.provider)
+        tokens.append((style_model, f"{provider_icon} "))
 
         # Usage Stats
         if hasattr(self, "agent") and hasattr(self.agent, "get_last_usage"):

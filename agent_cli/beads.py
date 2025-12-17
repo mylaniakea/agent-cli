@@ -4,7 +4,7 @@ Beads automatically summarizes older parts of conversations to fit within
 context windows while preserving recent messages for coherence.
 """
 
-from typing import List, Dict, Optional
+from typing import Optional
 
 
 class BeadsManager:
@@ -26,9 +26,9 @@ class BeadsManager:
         self.enabled = enabled
         self.max_messages = max_messages
         self.summary_threshold = summary_threshold
-        self.summaries: List[str] = []
+        self.summaries: list[str] = []
 
-    def should_summarize(self, messages: List[Dict]) -> bool:
+    def should_summarize(self, messages: list[dict]) -> bool:
         """Check if conversation should be summarized.
 
         Args:
@@ -41,7 +41,7 @@ class BeadsManager:
             return False
         return len(messages) > self.summary_threshold
 
-    def create_summary_prompt(self, messages: List[Dict]) -> str:
+    def create_summary_prompt(self, messages: list[dict]) -> str:
         """Create prompt for summarizing messages.
 
         Args:
@@ -70,7 +70,7 @@ CONVERSATION:
 
 SUMMARY:"""
 
-    def summarize_messages(self, messages: List[Dict], summary_agent_fn) -> Optional[str]:
+    def summarize_messages(self, messages: list[dict], summary_agent_fn) -> Optional[str]:
         """Summarize old messages using the agent.
 
         Args:
@@ -91,7 +91,7 @@ SUMMARY:"""
             print(f"Warning: Failed to create summary: {e}")
             return None
 
-    def compact_messages(self, messages: List[Dict], summary_agent_fn) -> List[Dict]:
+    def compact_messages(self, messages: list[dict], summary_agent_fn) -> list[dict]:
         """Compact message history using beads.
 
         Args:
@@ -131,7 +131,7 @@ SUMMARY:"""
             # Fallback: just return recent messages if summary fails
             return recent_messages
 
-    def get_all_summaries(self) -> List[str]:
+    def get_all_summaries(self) -> list[str]:
         """Get all stored summaries.
 
         Returns:

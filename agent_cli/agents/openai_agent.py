@@ -2,7 +2,7 @@
 
 import json
 from collections.abc import Iterator
-from typing import Dict, List, Optional
+from typing import Optional
 
 import requests
 
@@ -22,8 +22,8 @@ class OpenAIAgent(BaseAgent):
             raise ValueError("OpenAI API key not found. Set OPENAI_API_KEY environment variable.")
 
     def _build_messages(
-        self, prompt: str, history: Optional[List[Dict[str, str]]] = None
-    ) -> List[Dict[str, str]]:
+        self, prompt: str, history: Optional[list[dict[str, str]]] = None
+    ) -> list[dict[str, str]]:
         """Build messages list from prompt and history."""
         messages = []
         if history:
@@ -31,7 +31,7 @@ class OpenAIAgent(BaseAgent):
         messages.append({"role": "user", "content": prompt})
         return messages
 
-    def chat(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+    def chat(self, prompt: str, history: Optional[list[dict[str, str]]] = None) -> str:
         """Send a chat message to OpenAI."""
         url = f"{self.base_url}/chat/completions"
 
@@ -47,9 +47,9 @@ class OpenAIAgent(BaseAgent):
             data = response.json()
             return data["choices"][0]["message"]["content"]
         except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Error communicating with OpenAI: {e}")
+            raise RuntimeError(f"Error communicating with OpenAI: {e}") from e
 
-    def stream(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> Iterator[str]:
+    def stream(self, prompt: str, history: Optional[list[dict[str, str]]] = None) -> Iterator[str]:
         """Stream a chat response from OpenAI."""
         url = f"{self.base_url}/chat/completions"
 
@@ -80,7 +80,7 @@ class OpenAIAgent(BaseAgent):
                         except json.JSONDecodeError:
                             continue
         except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Error communicating with OpenAI: {e}")
+            raise RuntimeError(f"Error communicating with OpenAI: {e}") from e
 
     def list_models(self) -> list:
         """List available OpenAI models."""

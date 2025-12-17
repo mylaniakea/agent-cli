@@ -1,10 +1,13 @@
 """Ollama connection and model management."""
 
-import time
-import threading
 import os
+import threading
+import time
 from typing import Optional
+
 import requests
+
+from agent_cli.constants import DEFAULT_OLLAMA_BASE_URL
 
 
 class OllamaManager:
@@ -20,7 +23,7 @@ class OllamaManager:
 
     def initialize(self) -> bool:
         """Initialize from environment variables."""
-        self.base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+        self.base_url = os.environ.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
         self.current_model = os.environ.get("DEFAULT_OLLAMA_MODEL")
 
         try:

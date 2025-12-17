@@ -7,9 +7,11 @@ import configparser
 import json
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from dotenv import load_dotenv
+
+from agent_cli.constants import DEFAULT_OLLAMA_BASE_URL
 
 
 def _get_xdg_dir(env_var: str, fallback: str) -> Path:
@@ -80,7 +82,7 @@ class Config:
             self._config[DEFAULT_SECTION] = {}
 
         # Load configuration values (priority: env > ini > .env > defaults)
-        self.ollama_base_url = self._get_value("OLLAMA_BASE_URL", "http://localhost:11434")
+        self.ollama_base_url = self._get_value("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
 
         # API keys
         self.openai_api_key = self._get_value("OPENAI_API_KEY", "")
@@ -177,7 +179,7 @@ class Config:
         """Get the agents configuration file path."""
         return CONFIG_DIR / "agents.json"
 
-    def get_agents(self) -> Dict[str, Dict]:
+    def get_agents(self) -> dict[str, dict]:
         """Get configured specialized agents (personas)."""
         if self.agents_file.exists():
             try:
@@ -204,7 +206,7 @@ class Config:
             return True
         return False
 
-    def get_agent(self, name: str) -> Optional[Dict]:
+    def get_agent(self, name: str) -> Optional[dict]:
         """Get details for a specific agent."""
         return self.get_agents().get(name)
 
@@ -213,11 +215,11 @@ class Config:
         """Get the MCP servers configuration file path."""
         return MCP_SERVERS_FILE
 
-    def get_mcp_config(self) -> Dict[str, Dict]:
+    def get_mcp_config(self) -> dict[str, dict]:
         """Get configured MCP servers. Alias for get_mcp_servers for consistency."""
         return self.get_mcp_servers()
 
-    def get_mcp_servers(self) -> Dict[str, Dict]:
+    def get_mcp_servers(self) -> dict[str, dict]:
         """Get configured MCP servers."""
         if self.mcp_config_file.exists():
             try:
@@ -231,8 +233,8 @@ class Config:
         self,
         name: str,
         command: str,
-        args: Optional[List[str]] = None,
-        env: Optional[Dict[str, str]] = None,
+        args: Optional[list[str]] = None,
+        env: Optional[dict[str, str]] = None,
     ):
         """Add or update an MCP server configuration."""
         servers = self.get_mcp_servers()

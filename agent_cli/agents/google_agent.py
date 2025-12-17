@@ -2,7 +2,7 @@
 
 import json
 from collections.abc import Iterator
-from typing import Dict, List, Optional
+from typing import Optional
 
 import requests
 
@@ -22,8 +22,8 @@ class GoogleAgent(BaseAgent):
             raise ValueError("Google API key not found. Set GOOGLE_API_KEY environment variable.")
 
     def _build_contents(
-        self, prompt: str, history: Optional[List[Dict[str, str]]] = None
-    ) -> List[Dict]:
+        self, prompt: str, history: Optional[list[dict[str, str]]] = None
+    ) -> list[dict]:
         """Build contents list from prompt and history."""
         contents = []
         if history:
@@ -34,7 +34,7 @@ class GoogleAgent(BaseAgent):
         contents.append({"role": "user", "parts": [{"text": prompt}]})
         return contents
 
-    def chat(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+    def chat(self, prompt: str, history: Optional[list[dict[str, str]]] = None) -> str:
         """Send a chat message to Google Gemini."""
         url = f"{self.base_url}/models/{self.model}:generateContent"
 
@@ -59,9 +59,9 @@ class GoogleAgent(BaseAgent):
 
             raise RuntimeError("Unexpected response format from Google API")
         except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Error communicating with Google: {e}")
+            raise RuntimeError(f"Error communicating with Google: {e}") from e
 
-    def stream(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> Iterator[str]:
+    def stream(self, prompt: str, history: Optional[list[dict[str, str]]] = None) -> Iterator[str]:
         """Stream a chat response from Google Gemini."""
         url = f"{self.base_url}/models/{self.model}:streamGenerateContent"
 
@@ -90,7 +90,7 @@ class GoogleAgent(BaseAgent):
                     except json.JSONDecodeError:
                         continue
         except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Error communicating with Google: {e}")
+            raise RuntimeError(f"Error communicating with Google: {e}") from e
 
     def list_models(self) -> list:
         """List available Google models."""

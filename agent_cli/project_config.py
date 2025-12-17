@@ -1,8 +1,8 @@
 """Project-specific configuration management."""
 
-import os
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional
+
 import yaml
 
 
@@ -44,7 +44,7 @@ class ProjectConfig:
         return None
 
     @staticmethod
-    def parse_markdown_config(filepath: Path) -> Dict:
+    def parse_markdown_config(filepath: Path) -> dict:
         """Parse markdown config file (claude.md, gemini.md, etc.).
 
         Looks for YAML frontmatter or special comment blocks.
@@ -68,7 +68,7 @@ class ProjectConfig:
         elif "ollama" in filename:
             config["provider"] = "ollama"
 
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             content = f.read()
 
         # Try to parse YAML frontmatter
@@ -96,7 +96,7 @@ class ProjectConfig:
         return config
 
     @staticmethod
-    def parse_yaml_config(filepath: Path) -> Dict:
+    def parse_yaml_config(filepath: Path) -> dict:
         """Parse YAML config file (.agent.yml).
 
         Args:
@@ -105,12 +105,12 @@ class ProjectConfig:
         Returns:
             Dict with config
         """
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             config = yaml.safe_load(f)
         return config if isinstance(config, dict) else {}
 
     @staticmethod
-    def load_project_config(start_dir: Optional[Path] = None) -> Optional[Dict]:
+    def load_project_config(start_dir: Optional[Path] = None) -> Optional[dict]:
         """Load project configuration if available.
 
         Args:

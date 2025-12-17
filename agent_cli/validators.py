@@ -1,14 +1,14 @@
 """Validation utilities for API keys, models, and configurations."""
 
 import re
-from typing import Tuple, Optional
+from typing import Optional
 
 
 class APIKeyValidator:
     """Validate API keys for different providers."""
 
     @staticmethod
-    def validate_openai_key(key: str) -> Tuple[bool, Optional[str]]:
+    def validate_openai_key(key: str) -> tuple[bool, Optional[str]]:
         """Validate OpenAI API key format.
 
         Args:
@@ -29,7 +29,7 @@ class APIKeyValidator:
         return True, None
 
     @staticmethod
-    def validate_anthropic_key(key: str) -> Tuple[bool, Optional[str]]:
+    def validate_anthropic_key(key: str) -> tuple[bool, Optional[str]]:
         """Validate Anthropic API key format.
 
         Args:
@@ -50,7 +50,7 @@ class APIKeyValidator:
         return True, None
 
     @staticmethod
-    def validate_google_key(key: str) -> Tuple[bool, Optional[str]]:
+    def validate_google_key(key: str) -> tuple[bool, Optional[str]]:
         """Validate Google API key format.
 
         Args:
@@ -73,7 +73,7 @@ class APIKeyValidator:
         return True, None
 
     @staticmethod
-    def validate_provider_key(provider: str, key: str) -> Tuple[bool, Optional[str]]:
+    def validate_provider_key(provider: str, key: str) -> tuple[bool, Optional[str]]:
         """Validate API key for given provider.
 
         Args:
@@ -121,7 +121,7 @@ class ModelValidator:
     @staticmethod
     def validate_model(
         provider: str, model: str, models_metadata: dict
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> tuple[bool, Optional[str]]:
         """Validate that model exists for provider.
 
         Args:

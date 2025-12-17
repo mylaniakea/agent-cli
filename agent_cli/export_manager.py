@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Optional
 
 
 class ExportManager:
@@ -11,9 +11,9 @@ class ExportManager:
 
     @staticmethod
     def export_to_markdown(
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         filename: str,
-        metadata: Optional[Dict] = None,
+        metadata: Optional[dict] = None,
     ) -> str:
         """Export conversation to markdown format.
 
@@ -56,9 +56,9 @@ class ExportManager:
 
     @staticmethod
     def export_to_json(
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         filename: str,
-        metadata: Optional[Dict] = None,
+        metadata: Optional[dict] = None,
     ) -> str:
         """Export conversation to JSON format.
 
@@ -122,7 +122,7 @@ class ConversationLogger:
             self.log_dir.mkdir(parents=True, exist_ok=True)
 
     def log_conversation(
-        self, messages: List[Dict[str, str]], metadata: Optional[Dict] = None
+        self, messages: list[dict[str, str]], metadata: Optional[dict] = None
     ) -> Optional[str]:
         """Log a conversation to disk.
 
@@ -156,7 +156,7 @@ class ConversationLogger:
 
         return str(log_file)
 
-    def list_recent_logs(self, limit: int = 10) -> List[Dict]:
+    def list_recent_logs(self, limit: int = 10) -> list[dict]:
         """List recent conversation logs.
 
         Args:
@@ -175,7 +175,7 @@ class ConversationLogger:
         logs = []
         for log_file in log_files:
             try:
-                with open(log_file, "r", encoding="utf-8") as f:
+                with open(log_file, encoding="utf-8") as f:
                     data = json.load(f)
                     logs.append(
                         {

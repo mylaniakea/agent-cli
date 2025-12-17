@@ -3,9 +3,8 @@
 Commands are registered using the @register_command decorator from command_registry.
 """
 
-from datetime import datetime
 import json
-from typing import Dict
+from datetime import datetime
 
 from agent_cli.command_registry import register_command
 from agent_cli.ui import ui
@@ -31,7 +30,7 @@ CONTEXT_KEY_SYSTEM_PROMPT = "system_prompt"
     "  /help          - Show all commands\n"
     "  /help model    - Show detailed help for /model command",
 )
-def handle_help(command: str, context: Dict) -> bool:
+def handle_help(command: str, context: dict) -> bool:
     """Handle /help command."""
     from agent_cli.command_registry import generate_help_text
 
@@ -67,7 +66,7 @@ def handle_help(command: str, context: Dict) -> bool:
     "  /model          - Show current model\n"
     "  /model mistral  - Switch to mistral model",
 )
-def handle_model(command: str, context: Dict) -> bool:
+def handle_model(command: str, context: dict) -> bool:
     """Handle /model command."""
     from agent_cli.agents import AgentFactory
 
@@ -115,7 +114,7 @@ def handle_model(command: str, context: Dict) -> bool:
     "  /provider         - Show current provider\n"
     "  /provider openai  - Switch to OpenAI provider",
 )
-def handle_provider(command: str, context: Dict) -> bool:
+def handle_provider(command: str, context: dict) -> bool:
     """Handle /provider command."""
     from agent_cli.agents import AgentFactory
 
@@ -163,7 +162,7 @@ def handle_provider(command: str, context: Dict) -> bool:
     "When enabled, responses are streamed token by token.\n"
     "When disabled, responses are returned all at once.",
 )
-def handle_stream(command: str, context: Dict) -> bool:
+def handle_stream(command: str, context: dict) -> bool:
     """Handle /stream command."""
     current_stream = context.get(CONTEXT_KEY_STREAM, False)
     context[CONTEXT_KEY_STREAM] = not current_stream
@@ -180,7 +179,7 @@ def handle_stream(command: str, context: Dict) -> bool:
     detailed_help="Clear the conversation history for the current session.\n"
     "This removes all previous messages from context.",
 )
-def handle_clear(command: str, context: Dict) -> bool:
+def handle_clear(command: str, context: dict) -> bool:
     """Handle /clear command."""
     history = context.get(CONTEXT_KEY_HISTORY, [])
     if history:
@@ -201,7 +200,7 @@ def handle_clear(command: str, context: Dict) -> bool:
     "Displays the last 10 messages in the conversation.\n"
     "Use '/history compact' to manually compact the history.",
 )
-def handle_history(command: str, context: Dict) -> bool:
+def handle_history(command: str, context: dict) -> bool:
     """Handle /history command."""
     from agent_cli.history_manager import compact_history, format_history_summary
 
@@ -242,7 +241,7 @@ def handle_history(command: str, context: Dict) -> bool:
     "- API key status\n"
     "- Ollama URL",
 )
-def handle_config(command: str, context: Dict) -> bool:
+def handle_config(command: str, context: dict) -> bool:
     """Handle /config command."""
     config = context.get(CONTEXT_KEY_CONFIG)
     current_provider = context.get(CONTEXT_KEY_PROVIDER, "")
@@ -274,7 +273,7 @@ def handle_config(command: str, context: Dict) -> bool:
     detailed_help="Show information about MCP server management.\n"
     "Use 'agent-cli mcp' commands to manage MCP servers.",
 )
-def handle_mcp(command: str, context: Dict) -> bool:
+def handle_mcp(command: str, context: dict) -> bool:
     """Handle /mcp command."""
     ui.print_info("MCP Server Management:")
     ui.print_info("  Use 'agent-cli mcp' command to manage MCP servers")
@@ -283,7 +282,6 @@ def handle_mcp(command: str, context: Dict) -> bool:
         ["agent-cli mcp add <name>", "Add a server"],
         ["agent-cli mcp remove <name>", "Remove a server"],
     ]
-    from agent_cli.ui import ui
 
     parts = command.split(None, 2)
     if len(parts) < 2:
@@ -389,7 +387,7 @@ def handle_mcp(command: str, context: Dict) -> bool:
     "  /agent create coder llama3\n"
     "  /agent use coder",
 )
-def handle_agent(command: str, context: Dict) -> bool:
+def handle_agent(command: str, context: dict) -> bool:
     """Handle /agent command."""
     from agent_cli.ui import ui
 
@@ -512,7 +510,7 @@ def handle_agent(command: str, context: Dict) -> bool:
     "  /session clear - Clear current session state\n"
     "  /session list  - List all active sessions",
 )
-def handle_session(command: str, context: Dict) -> bool:
+def handle_session(command: str, context: dict) -> bool:
     """Handle /session command."""
     from agent_cli.session_manager import (
         clear_session_state,
@@ -572,7 +570,7 @@ def handle_session(command: str, context: Dict) -> bool:
     "  /theme             - List all available themes\n"
     "  /theme catppuccin  - Switch to Catppuccin theme",
 )
-def handle_theme(command: str, context: Dict) -> bool:
+def handle_theme(command: str, context: dict) -> bool:
     """Handle /theme command."""
     from agent_cli.ui import ui
 
@@ -614,7 +612,7 @@ def handle_theme(command: str, context: Dict) -> bool:
     "Note: API keys should be set via environment variables for security.\n"
     "Config file values are overridden by environment variables.",
 )
-def handle_set(command: str, context: Dict) -> bool:
+def handle_set(command: str, context: dict) -> bool:
     """Handle /set command."""
     from rich.prompt import Confirm
 
@@ -677,7 +675,7 @@ def handle_set(command: str, context: Dict) -> bool:
 def handle_context(command: str, **kwargs) -> bool:
     """Show context window usage information."""
     ui = kwargs.get("ui")
-    agent = kwargs.get("agent")
+    kwargs.get("agent")
     messages = kwargs.get("messages", [])
 
     if not ui:
@@ -728,7 +726,7 @@ def handle_context(command: str, **kwargs) -> bool:
     )
 
     # Progress bar
-    from rich.progress import Progress, BarColumn, TextColumn
+    from rich.progress import BarColumn, Progress, TextColumn
 
     progress = Progress(
         TextColumn("[progress.description]{task.description}"),
@@ -738,7 +736,7 @@ def handle_context(command: str, **kwargs) -> bool:
     )
 
     with progress:
-        task = progress.add_task("Usage", total=100, completed=info["percentage"])
+        progress.add_task("Usage", total=100, completed=info["percentage"])
 
     # Warnings
     if info["status"] == "critical":
@@ -880,7 +878,7 @@ def handle_log(command: str, **kwargs) -> bool:
             )
 
         ui.console.print(table)
-        ui.console.print(f"\n[dim]Use '/log view <id>' to view a specific log[/dim]\n")
+        ui.console.print("\n[dim]Use '/log view <id>' to view a specific log[/dim]\n")
 
     elif subcommand == "view":
         if len(parts) < 3:
@@ -899,7 +897,7 @@ def handle_log(command: str, **kwargs) -> bool:
             log_path = logs[log_id - 1]["path"]
 
             # Read and display log
-            with open(log_path, "r", encoding="utf-8") as f:
+            with open(log_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             metadata = data.get("metadata", {})
@@ -911,7 +909,7 @@ def handle_log(command: str, **kwargs) -> bool:
             ui.console.print(f"Messages: {len(messages)}\n")
 
             # Display first few messages
-            for i, msg in enumerate(messages[:5]):
+            for _, msg in enumerate(messages[:5]):
                 role = msg.get("role", "unknown")
                 content = msg.get("content", "")[:200]  # Truncate
                 ui.console.print(f"[bold]{role}:[/bold] {content}...")
@@ -998,10 +996,11 @@ def handle_init(command: str, **kwargs) -> bool:
     aliases=[],
     category="config",
 )
-def _handle_setup(context: Dict, args: str) -> bool:
+def _handle_setup(context: dict, args: str) -> bool:
     """Handle the setup command - interactive provider onboarding."""
-    from agent_cli.onboarding import ProviderOnboarding
     from rich.console import Console
+
+    from agent_cli.onboarding import ProviderOnboarding
 
     args = args.strip()
     if not args:
@@ -1016,7 +1015,7 @@ def _handle_setup(context: Dict, args: str) -> bool:
     result = ProviderOnboarding(console).run_onboarding(provider)
 
     if result:
-        console.print(f"\n[green bold]🎉 Setup complete![/green bold]")
+        console.print("\n[green bold]🎉 Setup complete![/green bold]")
         console.print(f"[dim]Use /provider {provider} to switch to this provider[/dim]\n")
 
     return True

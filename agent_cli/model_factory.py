@@ -6,7 +6,7 @@ Inspired by code-puppy's model_factory.py, adapted for agent-cli's simpler needs
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -20,17 +20,17 @@ class ModelMetadata:
     supports_streaming: bool
     supports_history: bool
     default_temperature: Optional[float] = None
-    custom_settings: Optional[Dict[str, Any]] = None
+    custom_settings: Optional[dict[str, Any]] = None
 
 
 class ModelFactory:
     """Factory for creating and managing AI models."""
 
-    _config_cache: Optional[Dict] = None
+    _config_cache: Optional[dict] = None
     _models_file: Path = Path(__file__).parent / "models.json"
 
     @classmethod
-    def load_config(cls) -> Dict:
+    def load_config(cls) -> dict:
         """Load model configuration from JSON file.
 
         Returns:
@@ -97,7 +97,7 @@ class ModelFactory:
         return metadata is not None
 
     @classmethod
-    def get_available_models(cls, provider: Optional[str] = None) -> Dict[str, Dict]:
+    def get_available_models(cls, provider: Optional[str] = None) -> dict[str, dict]:
         """Get available models, optionally filtered by provider.
 
         Args:
@@ -117,7 +117,7 @@ class ModelFactory:
         return config
 
     @classmethod
-    def get_model_settings(cls, provider: str, model_name: str) -> Dict[str, Any]:
+    def get_model_settings(cls, provider: str, model_name: str) -> dict[str, Any]:
         """Get recommended settings for a model.
 
         Args:

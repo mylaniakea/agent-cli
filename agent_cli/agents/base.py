@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-from typing import Dict, List, Optional
+from typing import Optional
 
 
 class BaseAgent(ABC):
@@ -21,7 +21,7 @@ class BaseAgent(ABC):
         self.system_prompt = system_prompt
 
     @abstractmethod
-    def chat(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+    def chat(self, prompt: str, history: Optional[list[dict[str, str]]] = None) -> str:
         """Send a chat message and get a response.
 
         Args:
@@ -33,7 +33,7 @@ class BaseAgent(ABC):
         """
         pass
 
-    def stream(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> Iterator[str]:
+    def stream(self, prompt: str, history: Optional[list[dict[str, str]]] = None) -> Iterator[str]:
         """Stream a chat response token by token.
 
         Args:

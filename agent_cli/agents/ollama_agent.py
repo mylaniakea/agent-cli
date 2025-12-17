@@ -3,7 +3,7 @@
 import re
 from collections.abc import Iterator
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Optional
 
 import requests
 
@@ -54,13 +54,13 @@ class OllamaAgent(BaseAgent):
         mm, ss = divmod(int(remaining.total_seconds()), 60)
         return f"{mm}m {ss}s"
 
-    def get_last_usage(self) -> Dict[str, int]:
+    def get_last_usage(self) -> dict[str, int]:
         """Return token usage stats from the last request."""
         return self.last_usage
 
     def _build_messages(
-        self, prompt: str, history: Optional[List[Dict[str, str]]] = None
-    ) -> List[Dict[str, str]]:
+        self, prompt: str, history: Optional[list[dict[str, str]]] = None
+    ) -> list[dict[str, str]]:
         """Build messages list from prompt and history."""
         messages = []
         if self.system_prompt:
@@ -70,7 +70,7 @@ class OllamaAgent(BaseAgent):
         messages.append({"role": "user", "content": prompt})
         return messages
 
-    def chat(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+    def chat(self, prompt: str, history: Optional[list[dict[str, str]]] = None) -> str:
         """Send a chat message to Ollama."""
         self.last_request_time = datetime.now()
         url = f"{self.base_url}/api/chat"
@@ -101,15 +101,15 @@ class OllamaAgent(BaseAgent):
             }
 
             return data.get("message", {}).get("content", "No response received")
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.ConnectionError as e:
             raise ConnectionError(
                 f"Could not connect to Ollama at {self.base_url}. "
                 "Make sure Ollama is running and accessible."
-            )
+            ) from e
         except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Error communicating with Ollama: {e}")
+            raise RuntimeError(f"Error communicating with Ollama: {e}") from e
 
-    def stream(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> Iterator[str]:
+    def stream(self, prompt: str, history: Optional[list[dict[str, str]]] = None) -> Iterator[str]:
         """Stream a chat response from Ollama."""
         self.last_request_time = datetime.now()
         url = f"{self.base_url}/api/chat"
@@ -148,12 +148,12 @@ class OllamaAgent(BaseAgent):
                             break
                     except json.JSONDecodeError:
                         continue
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.ConnectionError as e:
             raise ConnectionError(
                 f"Could not connect to Ollama at {self.base_url}. Make sure Ollama is running."
-            )
+            ) from e
         except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Error communicating with Ollama: {e}")
+            raise RuntimeError(f"Error communicating with Ollama: {e}") from e
 
     def list_models(self) -> list:
         """List available Ollama models."""

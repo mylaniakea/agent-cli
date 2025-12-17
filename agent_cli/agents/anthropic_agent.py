@@ -2,7 +2,7 @@
 
 import json
 from collections.abc import Iterator
-from typing import Dict, List, Optional
+from typing import Optional
 
 import requests
 
@@ -24,8 +24,8 @@ class AnthropicAgent(BaseAgent):
             )
 
     def _build_messages(
-        self, prompt: str, history: Optional[List[Dict[str, str]]] = None
-    ) -> List[Dict[str, str]]:
+        self, prompt: str, history: Optional[list[dict[str, str]]] = None
+    ) -> list[dict[str, str]]:
         """Build messages list from prompt and history."""
         messages = []
         if history:
@@ -33,7 +33,7 @@ class AnthropicAgent(BaseAgent):
         messages.append({"role": "user", "content": prompt})
         return messages
 
-    def chat(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+    def chat(self, prompt: str, history: Optional[list[dict[str, str]]] = None) -> str:
         """Send a chat message to Anthropic."""
         url = f"{self.base_url}/messages"
 
@@ -53,9 +53,9 @@ class AnthropicAgent(BaseAgent):
             data = response.json()
             return data["content"][0]["text"]
         except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Error communicating with Anthropic: {e}")
+            raise RuntimeError(f"Error communicating with Anthropic: {e}") from e
 
-    def stream(self, prompt: str, history: Optional[List[Dict[str, str]]] = None) -> Iterator[str]:
+    def stream(self, prompt: str, history: Optional[list[dict[str, str]]] = None) -> Iterator[str]:
         """Stream a chat response from Anthropic."""
         url = f"{self.base_url}/messages"
 
@@ -90,7 +90,7 @@ class AnthropicAgent(BaseAgent):
                         except json.JSONDecodeError:
                             continue
         except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Error communicating with Anthropic: {e}")
+            raise RuntimeError(f"Error communicating with Anthropic: {e}") from e
 
     def list_models(self) -> list:
         """List available Anthropic models."""

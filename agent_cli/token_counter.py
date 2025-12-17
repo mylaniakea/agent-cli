@@ -1,7 +1,5 @@
 """Token counting utilities for context management."""
 
-from typing import List, Dict, Optional
-
 
 class TokenCounter:
     """Estimate token counts for different providers."""
@@ -29,7 +27,7 @@ class TokenCounter:
         return max(1, len(text) // TokenCounter.CHARS_PER_TOKEN)
 
     @staticmethod
-    def estimate_messages_tokens(messages: List[Dict[str, str]]) -> int:
+    def estimate_messages_tokens(messages: list[dict[str, str]]) -> int:
         """Estimate total tokens in message history.
 
         Args:

@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import click
 
@@ -51,7 +51,7 @@ def read_file_content(filepath: str) -> Optional[str]:
         return None
 
 
-def process_file_references(text: str) -> Tuple[str, List[str]]:
+def process_file_references(text: str) -> tuple[str, list[str]]:
     """Process @filename references in text and return enhanced prompt with file contents."""
     # Pattern to match @filename or @"filename with spaces"
     pattern = r'@("([^"]+)"|(\S+))'
@@ -118,16 +118,18 @@ def chat(provider, model, non_interactive, stream, prompt):
     interactive = not non_interactive
     if interactive:
         # Check if first-run onboarding is needed
-        from agent_cli.interactive_onboarding import maybe_run_onboarding
         from rich.console import Console
+
+        from agent_cli.interactive_onboarding import maybe_run_onboarding
 
         onboarding_provider = maybe_run_onboarding(Console())
         if onboarding_provider:
             # Use the provider from onboarding
             current_provider = onboarding_provider
             # Reload .env file to pick up new variables
-            from dotenv import load_dotenv
             from pathlib import Path
+
+            from dotenv import load_dotenv
 
             env_path = Path.cwd() / ".env"
             if env_path.exists():
@@ -189,7 +191,7 @@ def chat(provider, model, non_interactive, stream, prompt):
         )
 
     # Conversation history for context
-    history: List[Dict[str, str]] = []
+    history: list[dict[str, str]] = []
 
     def create_agent():
         """Create agent with current provider and model."""
@@ -684,11 +686,9 @@ def mcp_remove(name, force):
         ui.print_error(f"MCP server '{name}' not found.")
         sys.exit(1)
 
-    if not force:
-        # We can implement a ui.confirm if needed, or use click.confirm
-        if not click.confirm(f"Remove MCP server '{name}'?"):
-            ui.print_info("Cancelled.")
-            return
+    if not force and not click.confirm(f"Remove MCP server '{name}'?"):
+        ui.print_info("Cancelled.")
+        return
 
     if config.remove_mcp_server(name):
         ui.print_success(f"MCP server '{name}' removed successfully.")
@@ -728,8 +728,9 @@ def mcp_show(name):
 @click.argument("provider", type=click.Choice(["openai", "anthropic", "google", "ollama"]))
 def setup(provider: str):
     """Interactive setup for a provider - configure API keys and settings."""
-    from agent_cli.onboarding import ProviderOnboarding
     from rich.console import Console
+
+    from agent_cli.onboarding import ProviderOnboarding
 
     console = Console()
     ProviderOnboarding.quick_setup(provider, console)

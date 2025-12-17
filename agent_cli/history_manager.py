@@ -3,8 +3,6 @@
 Inspired by code-puppy's message history management, adapted for agent-cli.
 """
 
-from typing import Dict, List
-
 from agent_cli.config import Config
 
 
@@ -22,7 +20,7 @@ def get_message_limit() -> int:
         return 50
 
 
-def should_compact_history(history: List[Dict[str, str]]) -> bool:
+def should_compact_history(history: list[dict[str, str]]) -> bool:
     """Check if history should be compacted.
 
     Args:
@@ -36,8 +34,8 @@ def should_compact_history(history: List[Dict[str, str]]) -> bool:
 
 
 def compact_history(
-    history: List[Dict[str, str]], strategy: str = "recent"
-) -> List[Dict[str, str]]:
+    history: list[dict[str, str]], strategy: str = "recent"
+) -> list[dict[str, str]]:
     """Compact conversation history using specified strategy.
 
     Args:
@@ -75,7 +73,7 @@ def compact_history(
         return history[-limit:]
 
 
-def add_to_history(history: List[Dict[str, str]], role: str, content: str) -> List[Dict[str, str]]:
+def add_to_history(history: list[dict[str, str]], role: str, content: str) -> list[dict[str, str]]:
     """Add a message to history with automatic compaction.
 
     Args:
@@ -97,7 +95,7 @@ def add_to_history(history: List[Dict[str, str]], role: str, content: str) -> Li
     return history
 
 
-def format_history_summary(history: List[Dict[str, str]], max_lines: int = 10) -> str:
+def format_history_summary(history: list[dict[str, str]], max_lines: int = 10) -> str:
     """Format history for display with truncation.
 
     Args:
