@@ -104,10 +104,10 @@ def cli():
     required=False,
     help="Model name to use. If not specified, uses last session model.",
 )
-@click.option("--interactive", "-i", is_flag=True, help="Run in interactive mode")
+@click.option("--non-interactive", is_flag=True, help="Run in non-interactive mode (single prompt)")
 @click.option("--stream", "-s", is_flag=True, help="Stream the response token by token")
 @click.argument("prompt", required=False)
-def chat(provider, model, interactive, stream, prompt):
+def chat(provider, model, non_interactive, stream, prompt):
     """Chat with an LLM agent."""
     config = Config()
 
@@ -115,6 +115,7 @@ def chat(provider, model, interactive, stream, prompt):
     session_state = get_session_state()
 
     # Use provided values, or fall back to session state (for interactive mode)
+    interactive = not non_interactive
     if interactive:
         # Check if first-run onboarding is needed
         from agent_cli.interactive_onboarding import maybe_run_onboarding
@@ -139,7 +140,7 @@ def chat(provider, model, interactive, stream, prompt):
         current_stream = stream if stream else session_state.get("stream", False)
         current_system_prompt = None  # Start with no system prompt
     else:
-        # In non-interactive mode, provider and model are required
+        # In non-interactive mode (when --non-interactive is used), provider and model are required
         if not provider or not model:
             ui.print_error("--provider and --model are required in non-interactive mode.")
             if session_state:
@@ -147,7 +148,7 @@ def chat(provider, model, interactive, stream, prompt):
                     f"Last session used: {session_state.get('provider')} / {session_state.get('model')}"
                 )
                 ui.print_info(
-                    "Use --interactive to continue with last session, or specify --provider and --model."
+                    "Run without --non-interactive to continue with last session, or specify --provider and --model."
                 )
             sys.exit(1)
         current_provider = provider
@@ -164,6 +165,7 @@ def chat(provider, model, interactive, stream, prompt):
         ui.print_info("Use 'agent-cli list-models' to see available models.")
 
     # Save initial state to session
+    interactive = not non_interactive
     if interactive:
         save_session_state(
             {
@@ -182,6 +184,7 @@ def chat(provider, model, interactive, stream, prompt):
             current_provider, current_model, config, system_prompt=current_system_prompt
         )
 
+    interactive = not non_interactive
     if interactive:
         ui.print_welcome()
         ui.print_info(
@@ -482,7 +485,7 @@ def chat(provider, model, interactive, stream, prompt):
     else:
         if not prompt:
             ui.print_error("Prompt is required in non-interactive mode.")
-            ui.print_info("Use --interactive for interactive mode or provide a prompt.")
+            ui.print_info("Run without --non-interactive for interactive mode or provide a prompt.")
             return
 
         # Process file references (@filename)
