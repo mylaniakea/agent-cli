@@ -31,12 +31,12 @@ PRESET_THEMES = {
         "code": "bright_black",
         "header": "bold blue",
         "panel.border": "blue",
-        "status.bar": "blue on black",
+        "status.bar": "#888888 on black",
         "completion-menu.completion": "black on #e0e0e0",
         "completion-menu.completion.current": "white on #4a9eff",
         "completion-menu.meta.completion": "#888888 on #f5f5f5",
         "completion-menu.meta.completion.current": "#cccccc on #4a9eff",
-        "prompt.border": "blue",
+        "prompt.border": "#888888",
         "prompt.text": "bold white",
         "border.pattern": "solid",  # solid, hashed, morse
     },
@@ -503,20 +503,11 @@ class InteractiveSession:
                 bottom_toolbar=get_bottom_toolbar_simple,
                 style=final_style,
                 refresh_interval=1.0,
-            )
-
-        # --- BOXED THEME (Standard) ---
+            )        # --- BOXED THEME (Standard) ---
         rich_styles = PRESET_THEMES[theme_name]
         border_color = rich_styles.get("prompt.border", "blue")
-        border_pattern = rich_styles.get("border.pattern", "solid")
-
-        # Define patterns
-        if border_pattern == "morse":
-            char = ".-"
-        elif border_pattern == "hashed":
-            char = "//"
-        else:  # solid
-            char = "─"
+        char = rich_styles.get("prompt.border_char", "─")
+        border_pattern = rich_styles.get("prompt.border_pattern", "solid")
 
         # Create borders using console width
         width = self.ui.console.width
@@ -534,8 +525,6 @@ class InteractiveSession:
         top_border = make_border("╭", "╮")
         bottom_border_str = make_border("╰", "╯")
 
-
-        # Print top border using Rich
         # Display Ollama status if using ollama provider
         if self.provider == "ollama":
             from agent_cli.ollama_manager import get_ollama_manager
@@ -545,44 +534,38 @@ class InteractiveSession:
                 # Display status right-aligned above top border
                 self.ui.console.print(f"[dim]{status}[/dim]", justify="right")
         
+        # Print top border using Rich
         self.ui.console.print(f"[{border_color}]{top_border}[/{border_color}]")
 
         # Function for right border
         def get_rprompt():
             return [("class:rprompt", "│")]
 
-        # Define custom style for toolbar
+        # Define custom style - NO bottom toolbar, clean look
         from prompt_toolkit.styles import Style, merge_styles
 
-        # Base style from theme manager
-        base_style = self.ui.theme_manager.get_current_style_for_prompt()
-
-        # Toolbar style
         toolbar_style = Style.from_dict(
             {
-                "rprompt": f"{border_color} bg:default",
-                "prompt.border": border_color,
+                "rprompt": f"{border_color}",
+                "prompt.border": f"{border_color}",
+                "prompt.text": "bold",
             }
         )
 
-        final_style = merge_styles([base_style, toolbar_style])
+        final_style = merge_styles([self.session.style, toolbar_style])
 
-        # Bottom toolbar shows the bottom border persistently
-        def get_bottom_toolbar():
-            return [("class:prompt.border", bottom_border_str)]
-
-        # Use a prompt that mimics a left border
+        # Prompt with left and right borders only
         result = self.session.prompt(
             [("class:prompt.border", "│ "), ("class:prompt.text", f"You {self._get_provider_icon(self.provider)} ➜ ")],
-            bottom_toolbar=get_bottom_toolbar,
             rprompt=get_rprompt,
             style=final_style,
         )
 
         # Print bottom border to close the box
-        # self.ui.console.print(f"[{border_color}]{bottom_border_str}[/{border_color}]")
+        self.ui.console.print(f"[{border_color}]{bottom_border_str}[/{border_color}]")
 
         return result
+
 
 
 class UI:
