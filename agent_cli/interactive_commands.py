@@ -92,6 +92,7 @@ def handle_model(command: str, context: Dict) -> bool:
             # Load Ollama model if using ollama provider
             if current_provider == "ollama":
                 from agent_cli.ollama_manager import get_ollama_manager
+
                 get_ollama_manager().load_model(new_model)
         except Exception as e:
             ui.print_error(f"Error switching model: {e}")
@@ -139,6 +140,7 @@ def handle_provider(command: str, context: Dict) -> bool:
                 # Load Ollama model if switched to ollama
                 if new_provider == "ollama":
                     from agent_cli.ollama_manager import get_ollama_manager
+
                     get_ollama_manager().load_model(current_model)
             except Exception as e:
                 ui.print_error(f"Error switching provider: {e}")
@@ -1010,11 +1012,11 @@ def _handle_setup(context: Dict, args: str) -> bool:
 
     provider = args.lower()
     console = Console()
-    
+
     result = ProviderOnboarding(console).run_onboarding(provider)
-    
+
     if result:
         console.print(f"\n[green bold]🎉 Setup complete![/green bold]")
         console.print(f"[dim]Use /provider {provider} to switch to this provider[/dim]\n")
-    
+
     return True

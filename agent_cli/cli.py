@@ -120,6 +120,7 @@ def chat(provider, model, non_interactive, stream, prompt):
         # Check if first-run onboarding is needed
         from agent_cli.interactive_onboarding import maybe_run_onboarding
         from rich.console import Console
+
         onboarding_provider = maybe_run_onboarding(Console())
         if onboarding_provider:
             # Use the provider from onboarding
@@ -127,6 +128,7 @@ def chat(provider, model, non_interactive, stream, prompt):
             # Reload .env file to pick up new variables
             from dotenv import load_dotenv
             from pathlib import Path
+
             env_path = Path.cwd() / ".env"
             if env_path.exists():
                 load_dotenv(env_path, override=True)
@@ -139,7 +141,7 @@ def chat(provider, model, non_interactive, stream, prompt):
                 current_model = config.default_anthropic_model
             elif onboarding_provider == "google":
                 current_model = config.default_google_model
-        
+
         # In interactive mode, use session state if provider/model not specified
         if not onboarding_provider:
             current_provider = provider or session_state.get("provider") or "ollama"
@@ -209,6 +211,7 @@ def chat(provider, model, non_interactive, stream, prompt):
         # Load Ollama model if using ollama provider
         if current_provider == "ollama":
             from agent_cli.ollama_manager import get_ollama_manager
+
             ollama_mgr = get_ollama_manager()
             ollama_mgr.load_model(current_model)
 
@@ -485,6 +488,7 @@ def chat(provider, model, non_interactive, stream, prompt):
                 # Cleanup Ollama if used
                 if current_provider == "ollama":
                     from agent_cli.ollama_manager import get_ollama_manager
+
                     get_ollama_manager().cleanup()
                 ui.print_info("\nExiting...")
                 break
@@ -726,7 +730,7 @@ def setup(provider: str):
     """Interactive setup for a provider - configure API keys and settings."""
     from agent_cli.onboarding import ProviderOnboarding
     from rich.console import Console
-    
+
     console = Console()
     ProviderOnboarding.quick_setup(provider, console)
 

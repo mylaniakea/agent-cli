@@ -423,10 +423,10 @@ class InteractiveSession:
     def _get_provider_icon(self, provider: str) -> str:
         """Get emoji/icon for provider."""
         icons = {
-            "openai": "🤖",      # Robot for ChatGPT/OpenAI
-            "anthropic": "🧠",   # Brain for Claude
-            "google": "✨",      # Sparkle for Gemini
-            "ollama": "🦙",      # Llama for Ollama
+            "openai": "🤖",  # Robot for ChatGPT/OpenAI
+            "anthropic": "🧠",  # Brain for Claude
+            "google": "✨",  # Sparkle for Gemini
+            "ollama": "🦙",  # Llama for Ollama
         }
         return icons.get(provider.lower(), "💬")  # Default chat bubble
 
@@ -470,7 +470,6 @@ class InteractiveSession:
 
         return tokens
 
-
     def _get_status_subtitle(self) -> str:
         """Generate subtitle for response panels showing model and provider."""
         return f"{self.model} ({self.provider})"
@@ -484,7 +483,7 @@ class InteractiveSession:
         from prompt_toolkit.layout import Layout
         from prompt_toolkit.key_binding import KeyBindings
         from prompt_toolkit.styles import Style, merge_styles
-        
+
         # Update style before prompt in case theme changed
         self.session.style = self.ui.theme_manager.get_current_style_for_prompt()
 
@@ -498,6 +497,7 @@ class InteractiveSession:
                 return self._get_toolbar_tokens()
 
             from prompt_toolkit.styles import Style, merge_styles
+
             simple_toolbar = Style.from_dict(
                 {
                     "bottom-toolbar": "noreverse",
@@ -524,7 +524,7 @@ class InteractiveSession:
 
         # Create borders
         width = self.ui.console.width
-        
+
         def make_border_line(start_char, end_char):
             target_len = max(0, width - 2)
             if border_pattern == "solid":
@@ -543,10 +543,11 @@ class InteractiveSession:
             # Convert tokens to string
             status_text = "".join([text for style, text in status_tokens])
             self.ui.console.print(f"[dim]{status_text}[/dim]")
-        
+
         # Display Ollama status if using ollama provider
         if self.provider == "ollama":
             from agent_cli.ollama_manager import get_ollama_manager
+
             ollama_mgr = get_ollama_manager()
             status = ollama_mgr.get_status_display()
             if status:
@@ -556,43 +557,54 @@ class InteractiveSession:
         buffer = Buffer()
 
         # Create style
-        custom_style = Style.from_dict({
-            "border": border_color,
-            "prompt": "bold",
-        })
+        custom_style = Style.from_dict(
+            {
+                "border": border_color,
+                "prompt": "bold",
+            }
+        )
         final_style = merge_styles([self.session.style, custom_style])
 
         # Build layout with borders
-        root_container = HSplit([
-            # Top border
-            Window(
-                content=FormattedTextControl(text=[("class:border", top_border)]),
-                height=1,
-            ),
-            # Input line with left border, prompt, input, right border
-            VSplit([
+        root_container = HSplit(
+            [
+                # Top border
                 Window(
-                    content=FormattedTextControl(text=[("class:border", "│ ")]),
-                    width=2,
+                    content=FormattedTextControl(text=[("class:border", top_border)]),
+                    height=1,
                 ),
+                # Input line with left border, prompt, input, right border
+                VSplit(
+                    [
+                        Window(
+                            content=FormattedTextControl(text=[("class:border", "│ ")]),
+                            width=2,
+                        ),
+                        Window(
+                            content=FormattedTextControl(
+                                text=[
+                                    (
+                                        "class:prompt",
+                                        f"You {self._get_provider_icon(self.provider)} ➜ ",
+                                    )
+                                ]
+                            ),
+                            dont_extend_width=True,
+                        ),
+                        Window(content=BufferControl(buffer=buffer)),
+                        Window(
+                            content=FormattedTextControl(text=[("class:border", "│")]),
+                            width=1,
+                        ),
+                    ]
+                ),
+                # Bottom border
                 Window(
-                    content=FormattedTextControl(
-                        text=[("class:prompt", f"You {self._get_provider_icon(self.provider)} ➜ ")]
-                    ),
-                    dont_extend_width=True,
+                    content=FormattedTextControl(text=[("class:border", bottom_border)]),
+                    height=1,
                 ),
-                Window(content=BufferControl(buffer=buffer)),
-                Window(
-                    content=FormattedTextControl(text=[("class:border", "│")]),
-                    width=1,
-                ),
-            ]),
-            # Bottom border
-            Window(
-                content=FormattedTextControl(text=[("class:border", bottom_border)]),
-                height=1,
-            ),
-        ])
+            ]
+        )
 
         layout = Layout(root_container)
 
@@ -617,6 +629,7 @@ class InteractiveSession:
 
         result = app.run()
         return result or ""
+
 
 class UI:
     """Centralized UI manager."""

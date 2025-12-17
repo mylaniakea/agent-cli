@@ -1,4 +1,5 @@
 """Ollama connection and model management."""
+
 import time
 import threading
 import os
@@ -21,24 +22,24 @@ class OllamaManager:
         """Initialize from environment variables."""
         self.base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
         self.current_model = os.environ.get("DEFAULT_OLLAMA_MODEL")
-        
+
         try:
             keep_alive = os.environ.get("OLLAMA_KEEP_ALIVE", "5")
             self.keep_alive_minutes = int(keep_alive)
         except ValueError:
             self.keep_alive_minutes = 5
-        
+
         return self.base_url is not None
 
     def load_model(self, model: Optional[str] = None) -> bool:
         """Load a model into GPU memory."""
         if not self.base_url:
             return False
-        
+
         model_name = model or self.current_model
         if not model_name:
             return False
-        
+
         try:
             # Generate request to load model
             response = requests.post(
@@ -46,11 +47,13 @@ class OllamaManager:
                 json={
                     "model": model_name,
                     "prompt": "",
-                    "keep_alive": f"{self.keep_alive_minutes}m" if self.keep_alive_minutes >= 0 else "-1"
+                    "keep_alive": f"{self.keep_alive_minutes}m"
+                    if self.keep_alive_minutes >= 0
+                    else "-1",
                 },
-                timeout=10
+                timeout=10,
             )
-            
+
             if response.status_code == 200:
                 with self._lock:
                     self.current_model = model_name
@@ -59,7 +62,7 @@ class OllamaManager:
                 return True
         except Exception:
             pass
-        
+
         return False
 
     def _schedule_cleanup(self):
@@ -67,7 +70,7 @@ class OllamaManager:
         # Cancel existing timer
         if self._cleanup_timer:
             self._cleanup_timer.cancel()
-        
+
         # Schedule new cleanup if keep_alive is not indefinite
         if self.keep_alive_minutes > 0:
             cleanup_seconds = self.keep_alive_minutes * 60
@@ -79,37 +82,33 @@ class OllamaManager:
         """Unload the current model from GPU memory."""
         if not self.base_url or not self.current_model:
             return False
-        
+
         try:
             # Send request with keep_alive=0 to unload
             requests.post(
                 f"{self.base_url}/api/generate",
-                json={
-                    "model": self.current_model,
-                    "prompt": "",
-                    "keep_alive": "0"
-                },
-                timeout=5
+                json={"model": self.current_model, "prompt": "", "keep_alive": "0"},
+                timeout=5,
             )
-            
+
             with self._lock:
                 self.current_model = None
                 self.model_loaded_at = None
-            
+
             return True
         except Exception:
             pass
-        
+
         return False
 
     def get_time_remaining(self) -> Optional[int]:
         """Get seconds remaining before model unload. None if indefinite."""
         if self.keep_alive_minutes < 0:
             return None  # Indefinite
-        
+
         if not self.model_loaded_at:
             return 0
-        
+
         with self._lock:
             elapsed = time.time() - self.model_loaded_at
             total_seconds = self.keep_alive_minutes * 60
@@ -120,9 +119,9 @@ class OllamaManager:
         """Get formatted status display for UI."""
         if not self.current_model:
             return ""
-        
+
         remaining = self.get_time_remaining()
-        
+
         if remaining is None:
             # Indefinite keep-alive
             return f"🦙 {self.current_model} (loaded)"
@@ -136,7 +135,7 @@ class OllamaManager:
         """Cleanup on exit - cancel timers and unload model."""
         if self._cleanup_timer:
             self._cleanup_timer.cancel()
-        
+
         self.unload_model()
 
 
