@@ -230,7 +230,7 @@ Let's get you set up in just a few steps!
         if Confirm.ask("\n💾 Save this configuration?", default=True, console=self.console):
             config = {
                 "OLLAMA_BASE_URL": base_url,
-                "OLLAMA_DEFAULT_MODEL": default_model,
+                "DEFAULT_OLLAMA_MODEL": default_model,
                 "OLLAMA_KEEP_ALIVE": keep_alive,
             }
             

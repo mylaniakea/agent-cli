@@ -20,7 +20,7 @@ class OllamaManager:
     def initialize(self) -> bool:
         """Initialize from environment variables."""
         self.base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
-        self.current_model = os.environ.get("OLLAMA_DEFAULT_MODEL")
+        self.current_model = os.environ.get("DEFAULT_OLLAMA_MODEL")
         
         try:
             keep_alive = os.environ.get("OLLAMA_KEEP_ALIVE", "5")
