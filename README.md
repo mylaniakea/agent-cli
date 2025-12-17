@@ -189,3 +189,21 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Inspired by [code_puppy](https://github.com/mpfaffenberger/code_puppy)
 - Built with [Rich](https://github.com/Textualize/rich) for beautiful terminal output
 - Uses [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) for interactive mode
+
+## Credits & Inspiration
+
+This project was significantly inspired by and borrows architectural patterns from [code_puppy](https://github.com/mpfaffenberger/code_puppy). Key contributions from code-puppy include:
+
+- **Command Registry System**: Decorator-based command registration with auto-discovery
+- **Session Management**: Per-terminal-session persistence with PPID-based tracking
+- **Configuration Architecture**: XDG-based config with proper directory structure
+- **Model Factory Pattern**: Centralized model creation with metadata and validation
+- **Overall Architecture**: Separation of concerns, registry patterns, and extensibility
+
+Thank you to the code-puppy project for the excellent design patterns and inspiration! 🐶
+
+Special thanks to:
+- [code_puppy](https://github.com/mpfaffenberger/code_puppy) - Architecture and design patterns
+- [Rich](https://github.com/Textualize/rich) - Beautiful terminal output
+- [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) - Interactive prompts
+- All contributors and users of agent-cli
