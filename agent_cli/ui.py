@@ -533,7 +533,7 @@ class InteractiveSession:
             completer=self.slash_completer,
             style=self.ui.theme_manager.get_current_style_for_prompt(),
             complete_while_typing=True,
-            complete_style=CompleteStyle.POPUP_MENU,  # Pop-out menu style
+            complete_style=CompleteStyle.COLUMN,  # Vertical pop-out menu style
         )
         self.provider = "Unknown"
         self.model = "Unknown"
