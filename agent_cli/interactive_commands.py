@@ -930,24 +930,31 @@ def handle_log(command: str, **kwargs) -> bool:
 
 @register_command(
     name="init",
-    description="Initialize project configuration",
-    usage="/init [provider] [--format yaml|markdown]",
+    description="Initialize project configuration with intelligent wizard",
+    usage="/init [provider] [--quick] [--format yaml|markdown] [--analyze]",
     aliases=[],
     category="config",
 )
 def handle_init(command: str, **kwargs) -> bool:
-    """Initialize project configuration file."""
+    """Initialize project configuration file with intelligent wizard."""
     ui = kwargs.get("ui")
 
     if not ui:
         return True
 
+    from pathlib import Path
+
+    from agent_cli.interactive_select import SingleSelect
     from agent_cli.project_config import ProjectConfig
+    from agent_cli.project_detector import detect_project
+    from agent_cli.templates import get_template_library
 
     # Parse command
     parts = command.split()
     provider = None
     format_type = "markdown"  # default
+    quick_mode = "--quick" in parts
+    analyze = "--analyze" in parts or not any(p in parts[1:] for p in ["openai", "anthropic", "google", "ollama"])
 
     for i, part in enumerate(parts[1:], 1):
         if part.startswith("--format="):
@@ -955,16 +962,8 @@ def handle_init(command: str, **kwargs) -> bool:
         elif part in ["--format", "-f"]:
             if i + 1 < len(parts):
                 format_type = parts[i + 1]
-        elif not provider:
+        elif part not in ["--quick", "--analyze", "--format", "-f"] and not provider:
             provider = part
-
-    # Validate provider
-    valid_providers = ["openai", "anthropic", "google", "ollama"]
-    if not provider or provider.lower() not in valid_providers:
-        ui.print_error(f"Please specify a provider: {', '.join(valid_providers)}")
-        ui.console.print("\nExample: /init anthropic")
-        ui.console.print("         /init google --format yaml")
-        return True
 
     # Check if config already exists
     existing = ProjectConfig.find_project_config()
@@ -975,18 +974,229 @@ def handle_init(command: str, **kwargs) -> bool:
             ui.console.print("[dim]Cancelled[/dim]")
             return True
 
+    # Show wizard header
+    ui.console.print("\n╭────────────────────────────────────────────╮")
+    ui.console.print("│ 🚀 Project Initialization Wizard          │")
+    ui.console.print("╰────────────────────────────────────────────╯\n")
+
+    # Analyze project if requested or no provider specified
+    analysis = None
+    if analyze:
+        ui.console.print("[cyan]🔍 Analyzing your project...[/cyan]\n")
+        try:
+            analysis = detect_project(Path.cwd())
+            ui.console.print(analysis.get_summary())
+            ui.console.print()
+        except Exception as e:
+            ui.console.print(f"[yellow]Warning: Could not analyze project: {e}[/yellow]\n")
+
+    # Get template library
+    template_lib = get_template_library()
+
+    # Provider selection
+    if not provider:
+        provider_options = [
+            {"label": "🧠 Anthropic (Claude 3.5)", "value": "anthropic",
+             "description": "Best for coding, reasoning, and complex tasks"},
+            {"label": "🤖 OpenAI (GPT-4o, o1)", "value": "openai",
+             "description": "Excellent all-rounder with strong performance"},
+            {"label": "✨ Google (Gemini 1.5)", "value": "google",
+             "description": "Fast and cost-effective with large context"},
+            {"label": "🦙 Ollama (Local)", "value": "ollama",
+             "description": "Privacy-focused local models"},
+        ]
+
+        # Highlight recommended provider if we have analysis
+        if analysis and analysis.recommended_provider:
+            for opt in provider_options:
+                if opt["value"] == analysis.recommended_provider:
+                    opt["label"] = opt["label"] + " [bold cyan](Recommended)[/bold cyan]"
+                    # Move to front
+                    provider_options.remove(opt)
+                    provider_options.insert(0, opt)
+                    break
+
+        ui.console.print("[bold]Select your PRIMARY provider:[/bold]")
+        selector = SingleSelect(provider_options)
+        selected_provider = selector.run()
+
+        if not selected_provider:
+            ui.console.print("[dim]Cancelled[/dim]")
+            return True
+
+        provider = selected_provider
+
+    # Template selection
+    template = None
+    if not quick_mode:
+        # Get recommended template from analysis or provider
+        recommended_template_id = None
+        if analysis and analysis.recommended_template:
+            recommended_template_id = analysis.recommended_template
+
+        # Get templates for selection
+        categories = template_lib.get_categories()
+        template_options = []
+
+        for template_obj in template_lib.list_templates():
+            label = f"{template_obj.name}"
+            if template_obj.id == recommended_template_id:
+                label = f"{label} [bold cyan](Recommended)[/bold cyan]"
+
+            template_options.append({
+                "label": label,
+                "value": template_obj.id,
+                "description": template_obj.description
+            })
+
+        ui.console.print("\n[bold]Select a project template:[/bold]")
+        selector = SingleSelect(template_options)
+        selected_template_id = selector.run()
+
+        if not selected_template_id:
+            ui.console.print("[dim]Using default template[/dim]\n")
+        else:
+            template = template_lib.get_template(selected_template_id)
+
+    # Format selection
+    if not quick_mode:
+        ui.console.print("\n[bold]Select configuration format:[/bold]")
+        format_options = [
+            {"label": "📄 Markdown (claude.md, gpt.md, etc.)", "value": "markdown",
+             "description": "Human-friendly, easy to read and edit"},
+            {"label": "📋 YAML (.agent.yml)", "value": "yaml",
+             "description": "Structured, machine-readable format"},
+        ]
+        selector = SingleSelect(format_options)
+        selected_format = selector.run()
+
+        if selected_format:
+            format_type = selected_format
+
     # Create config
+    ui.console.print("\n[cyan]✨ Creating project configuration...[/cyan]\n")
+
     try:
-        config_path = ProjectConfig.create_project_config(provider.lower(), format=format_type)
+        # Use template if selected
+        if template:
+            # Create config with template settings
+            config_content = _create_config_from_template(
+                provider=provider,
+                template=template,
+                format_type=format_type,
+                analysis=analysis
+            )
+
+            # Determine filename
+            if format_type == "yaml":
+                config_path = Path.cwd() / ".agent.yml"
+            else:
+                config_path = Path.cwd() / f"{provider}.md"
+
+            config_path.write_text(config_content)
+        else:
+            # Use default config creation
+            config_path = ProjectConfig.create_project_config(
+                provider.lower(),
+                format=format_type
+            )
+
         ui.print_success(f"Created project config: {config_path}")
-        ui.console.print(f"\n[cyan]Edit {config_path.name} to customize project settings[/cyan]")
-        ui.console.print(
-            "[dim]This config will be used automatically when running agent CLI in this directory[/dim]"
-        )
+
+        # Show next steps
+        ui.console.print("\n[bold cyan]🎉 Project initialized successfully![/bold cyan]\n")
+        ui.console.print("[bold]Next steps:[/bold]")
+        ui.console.print(f"  • Edit [cyan]{config_path.name}[/cyan] to customize settings")
+        ui.console.print("  • Use [cyan]/chat[/cyan] to start coding with project context")
+        ui.console.print("  • Use [cyan]/fallback[/cyan] to add a backup provider")
+
+        if template:
+            ui.console.print(f"\n[dim]Template: {template.name}[/dim]")
+            ui.console.print(f"[dim]Use cases: {', '.join(template.example_use_cases)}[/dim]")
+
     except Exception as e:
         ui.print_error(f"Failed to create config: {e}")
 
     return True
+
+
+def _create_config_from_template(provider: str, template, format_type: str, analysis=None) -> str:
+    """Create configuration content from a template.
+
+    Args:
+        provider: Provider name
+        template: ProjectTemplate object
+        format_type: 'yaml' or 'markdown'
+        analysis: Optional ProjectAnalysis
+
+    Returns:
+        Configuration file content as string
+    """
+    if format_type == "yaml":
+        # YAML format
+        content = f"""# Agent CLI Project Configuration
+# Auto-generated from template: {template.name}
+
+provider: {provider}
+model: {template.model}
+temperature: {template.temperature}
+
+# System prompt for this project
+system_prompt: |
+{chr(10).join('  ' + line for line in template.system_prompt.split(chr(10)))}
+
+# Context files to include automatically
+context_files:
+"""
+        for pattern in template.context_files:
+            content += f'  - "{pattern}"\n'
+
+        content += "\n# Files to exclude from context\nexclude_patterns:\n"
+        for pattern in template.exclude_patterns:
+            content += f'  - "{pattern}"\n'
+
+        content += "\n# Enabled tools\ntools:\n"
+        for tool in template.tools:
+            content += f"  - {tool}\n"
+
+        # Add Beads configuration if we have analysis
+        if analysis:
+            content += "\n# Beads context management\nbeads:\n"
+            content += "  enabled: true\n"
+            content += "  max_messages: 20\n"
+            content += "  summary_threshold: 15\n"
+
+    else:
+        # Markdown format
+        content = f"""---
+provider: {provider}
+model: {template.model}
+temperature: {template.temperature}
+context_files:
+"""
+        for pattern in template.context_files:
+            content += f'  - "{pattern}"\n'
+
+        content += "exclude_patterns:\n"
+        for pattern in template.exclude_patterns:
+            content += f'  - "{pattern}"\n'
+
+        content += "tools:\n"
+        for tool in template.tools:
+            content += f"  - {tool}\n"
+
+        content += "---\n\n"
+        content += template.system_prompt
+
+        # Add project info if we have analysis
+        if analysis and analysis.primary_language:
+            content += "\n\n## Project Information\n\n"
+            content += f"- **Language**: {analysis.primary_language.title()}\n"
+            if analysis.frameworks:
+                content += f"- **Frameworks**: {', '.join(analysis.frameworks)}\n"
+            content += f"- **Complexity**: {analysis.complexity.title()}\n"
+
+    return content
 
 
 @register_command(
