@@ -1019,3 +1019,181 @@ def _handle_setup(context: dict, args: str) -> bool:
         console.print(f"[dim]Use /provider {provider} to switch to this provider[/dim]\n")
 
     return True
+
+
+@register_command(
+    name="compress",
+    description="Compress conversation history into a summary",
+    usage="/compress",
+    aliases=[],
+    category="session",
+    detailed_help="Compress the conversation history into a concise summary.\n"
+    "This reduces token usage while preserving key context.",
+)
+def handle_compress(command: str, context: dict) -> bool:
+    """Handle /compress command."""
+    history = context.get(CONTEXT_KEY_HISTORY, [])
+    agent = context.get(CONTEXT_KEY_AGENT)
+
+    if not history:
+        ui.print_warning("No history to compress.")
+        return True
+
+    if not agent:
+        ui.print_error("No agent available.")
+        return True
+
+    ui.print_info("Compressing conversation history...")
+    try:
+        with ui.create_spinner("Summarizing context..."):
+            summary_prompt = (
+                "Summarize our conversation so far into a concise context string "
+                "that captures all key information, decisions, and current state. "
+                "Do not lose important details."
+            )
+            summary = agent.chat(summary_prompt, history=history)
+
+        # Replace history with summary
+        history.clear()
+        history.append({"role": "user", "content": "Previous Context Summary: " + summary})
+        history.append({"role": "assistant", "content": "Understood. I have the context."})
+        ui.print_success("Context compressed!")
+    except Exception as e:
+        ui.print_error(f"Error compressing history: {e}")
+
+    return True
+
+
+@register_command(
+    name="beads",
+    description="Check Beads CLI status or context",
+    usage="/beads [status|context]",
+    aliases=["bd"],
+    category="tools",
+    detailed_help="Integration with Beads CLI for project context management.\n"
+    "Commands:\n"
+    "  /beads status  - Show Beads status (default)\n"
+    "  /beads context - Show Beads context\n\n"
+    "If Beads is not installed, offers to install via Homebrew.",
+)
+def handle_beads(command: str, context: dict) -> bool:
+    """Handle /beads command."""
+    import shutil
+    import subprocess
+
+    parts = command.split()
+    subcmd = parts[1] if len(parts) > 1 else "status"
+
+    bd_path = shutil.which("bd")
+
+    # Handle installation if missing
+    if not bd_path:
+        ui.print_warning("Beads CLI ('bd') not found.")
+
+        # Check for Homebrew
+        brew_path = shutil.which("brew")
+        if brew_path:
+            try:
+                from rich.prompt import Confirm
+
+                if Confirm.ask("Install 'bd' via Homebrew?"):
+                    ui.print_info("Running: brew tap steveyegge/beads")
+                    subprocess.run([brew_path, "tap", "steveyegge/beads"], check=True)
+
+                    ui.print_info("Running: brew install bd")
+                    subprocess.run([brew_path, "install", "bd"], check=True)
+
+                    bd_path = shutil.which("bd")
+                    if bd_path:
+                        ui.print_success(f"Beads installed successfully at {bd_path}!")
+                    else:
+                        ui.print_error(
+                            "Installation appeared to succeed but 'bd' is still not found."
+                        )
+            except subprocess.CalledProcessError as e:
+                ui.print_error(f"Installation failed: {e}")
+            except Exception as e:
+                ui.print_error(f"Error during installation: {e}")
+
+        if not bd_path:
+            ui.print_info("Please install manually:")
+            ui.print_info("  brew tap steveyegge/beads && brew install bd")
+            ui.print_info("  -or-")
+            ui.print_info(
+                "  curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
+            )
+            return True
+
+    # Execute beads command
+    try:
+        if subcmd == "context":
+            result = subprocess.run([bd_path, "status"], capture_output=True, text=True, check=True)
+            ui.console.print(f"\n[blue]Beads Context:[/blue]\n{result.stdout}")
+        else:  # Default to status
+            result = subprocess.run([bd_path, "status"], capture_output=True, text=True, check=True)
+            ui.console.print(f"\n[blue]Beads Status:[/blue]\n{result.stdout}")
+    except subprocess.CalledProcessError as e:
+        ui.print_warning(
+            f"Beads returned error (is it initialized?): {e.stderr.strip() if e.stderr else e.stdout.strip()}"
+        )
+        ui.print_info("Try running 'bd init' in the project folder matching this session.")
+    except FileNotFoundError:
+        ui.print_error(f"Beads CLI ('bd') not found at '{bd_path}'.")
+    except Exception as e:
+        ui.print_error(f"An unexpected error occurred while running beads: {e}")
+
+    return True
+
+
+@register_command(
+    name="keepalive",
+    description="Set or show Ollama keep-alive duration",
+    usage="/keepalive [duration]",
+    aliases=["ka"],
+    category="config",
+    detailed_help="Set or show the keep-alive duration for Ollama models.\n"
+    "Examples:\n"
+    "  /keepalive       - Show current setting\n"
+    "  /keepalive 10m   - Keep model loaded for 10 minutes\n"
+    "  /keepalive 0     - Unload immediately after response\n\n"
+    "Only works with Ollama provider.",
+)
+def handle_keepalive(command: str, context: dict) -> bool:
+    """Handle /keepalive command."""
+    agent = context.get(CONTEXT_KEY_AGENT)
+    parts = command.split()
+
+    if len(parts) > 1:
+        # Set keep-alive
+        duration = parts[1]
+        if hasattr(agent, "set_keep_alive"):
+            agent.set_keep_alive(duration)
+            ui.print_success(f"Keep-alive set to {duration}")
+        else:
+            ui.print_warning("Keep-alive is only supported for Ollama agents.")
+    else:
+        # Show current keep-alive
+        if hasattr(agent, "keep_alive"):
+            ui.print_info(f"Current keep-alive: {agent.keep_alive}")
+        else:
+            ui.print_info("Keep-alive: N/A (not supported for this provider)")
+        ui.print_info("Usage: /keepalive <duration> (e.g., 10m, 1h, 0)")
+
+    return True
+
+
+@register_command(
+    name="reasoning",
+    description="Toggle reasoning display mode",
+    usage="/reasoning",
+    aliases=["think"],
+    category="config",
+    detailed_help="Toggle reasoning display mode.\n"
+    "When enabled, shows model reasoning process (if supported by model).",
+)
+def handle_reasoning(command: str, context: dict) -> bool:
+    """Handle /reasoning command."""
+    # For now, this is a placeholder for future reasoning display toggle
+    ui.print_info("Reasoning display toggle: currently always enabled for raw stream.")
+    ui.print_info("This feature will be enhanced in future updates.")
+    return True

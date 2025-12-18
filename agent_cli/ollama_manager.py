@@ -129,8 +129,9 @@ class OllamaManager:
             # Indefinite keep-alive
             return f"🦙 {self.current_model} (loaded)"
         elif remaining > 0:
-            mins, secs = divmod(remaining, 60)
-            return f"🦙 {self.current_model} ({mins}:{secs:02d})"
+            # Show time in minutes with one decimal place
+            remaining_mins = remaining / 60
+            return f"🦙 {self.current_model} (⏱ {remaining_mins:.1f}m)"
         else:
             return ""
 

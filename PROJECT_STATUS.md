@@ -9,40 +9,74 @@
 - Exception chaining in all agent files
 - Constants module for shared Ollama defaults
 - Code is well-structured and follows modern Python practices
+- **FIXED**: Slash command autocomplete now working for all themes
+- **REFACTORED**: CLI fully refactored with proper encapsulation
+- **FIXED**: Stream duplication bug in non-interactive mode
+- **IMPROVED**: 4 new commands added to registry (/compress, /beads, /keepalive, /reasoning)
 
-### ❌ Critical Issue - AUTOCOMPLETE BROKEN
-**Slash command autocomplete is NOT working**
-- User types `/` + TAB - nothing happens
-- No command menu appears
-- Tab completion completely non-functional
+### ✅ Recent Fix - AUTOCOMPLETE RESTORED (Dec 17, 2025)
+**Issue**: Slash command autocomplete was not working with boxed themes
+- The custom Application in `ui.py` for boxed themes didn't have completer attached
+- Only "simple" theme worked because it used the PromptSession directly
 
-The `SlashCommandCompleter` class exists in `agent_cli/ui.py` (line 317) and looks correct, but it's not functioning when the app runs.
+**Root Cause**:
+- The `prompt()` method creates a custom `Application` with `Buffer` for boxed UI
+- The Buffer didn't have the `completer` parameter set
+- No Tab key bindings were defined for triggering completions
 
-**Possible causes:**
-1. PromptSession not properly initialized with the completer
-2. Terminal/PTY issues preventing completion
-3. Something in the session setup broken during linting changes
-4. Completer not being passed to PromptSession correctly
+**Fix Applied**:
+1. Added `completer=self.slash_completer` to Buffer initialization (line 557-560)
+2. Added `complete_while_typing=True` to Buffer
+3. Added Tab key binding to trigger completions (line 625-632)
+4. Added Shift+Tab key binding for previous completion (line 634-639)
+5. Fixed import organization for `CompleteStyle`
 
-### What Was Attempted
-- Ran automated linting fixes (`ruff --fix --unsafe-fixes`)
-- Modified UI toolbar to show only provider emoji
-- Multiple attempts to "fix" things that broke autocomplete further
-- Reverted ui.py changes but issue persists
+### ✅ CLI Refactoring Complete (Dec 17, 2025)
+**Major refactoring** of `agent_cli/cli.py` for better encapsulation:
 
-### What Needs Investigation
-1. **Debug why PromptSession completions don't trigger**
-   - Check if completer is properly attached
-   - Verify complete_while_typing is working
-   - Test if it's a terminal compatibility issue
+**Bugs Fixed**:
+1. **Stream duplication bug** - Non-interactive stream consumed generator twice (never output anything)
+2. **Global UI dependency** - Removed global import, now passes instances
+3. **Repeated variable computation** - `interactive` was computed 3 separate times
 
-2. **Compare with known working version**
-   - Check git history from yesterday (commit b52df55)
-   - See what changed in PromptSession initialization
+**Improvements**:
+- Main `chat()` function: 430+ lines → ~100 lines (76% reduction)
+- Extracted functions: `run_interactive_mode()`, `run_non_interactive_mode()`
+- Added 11 helper functions for separation of concerns
+- Added constants (`DUMMY_MODEL_NAME`, `EXIT_COMMANDS`)
+- Centralized command context building
+- Clear agent recreation logic
 
-3. **Test autocomplete in isolation**
-   - Create minimal test script with just PromptSession + completer
-   - Verify it works outside the full app
+**New Commands** (moved from hardcoded to registry):
+- `/compress` - Compress conversation history into summary
+- `/beads` - Beads CLI integration with auto-installation
+- `/keepalive` - Ollama keep-alive duration management
+- `/reasoning` - Reasoning display toggle
+
+**Files Modified**:
+- `agent_cli/cli.py` - Complete rewrite (717 lines, down from 746)
+- `agent_cli/interactive_commands.py` - Added 4 new commands (~180 new lines)
+- `agent_cli/cli_old_backup.py` - Backup of original
+
+**See `CLI_REFACTORING_SUMMARY.md` for complete details.**
+
+### Testing Notes
+
+**Autocomplete Testing**:
+1. Run `./dev.sh` to start interactive mode
+2. Type `/` and press Tab - should show command list
+3. Type `/mod` and press Tab - should complete to `/model`
+4. Type `/model ` (with space) and press Tab - should show available models
+5. Use Shift+Tab to navigate backwards through completions
+
+**CLI Testing** (needs manual verification):
+- Interactive mode startup and provider selection
+- New commands: `/compress`, `/beads`, `/keepalive`, `/reasoning`
+- Provider/model switching mid-session
+- Streaming in interactive and non-interactive modes
+- File reference processing (@filename)
+- Session persistence across restarts
+- Error handling and recovery
 
 ## Recent Changes (Last 24 Hours)
 

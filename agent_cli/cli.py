@@ -1,8 +1,6 @@
-"""Main CLI entry point."""
+"""Main CLI entry point - refactored for better encapsulation."""
 
 import re
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
@@ -14,9 +12,7 @@ import agent_cli.interactive_commands  # noqa: F401
 from agent_cli.agents import AgentFactory
 from agent_cli.command_registry import handle_command
 from agent_cli.config import Config
-from agent_cli.history_manager import (
-    add_to_history,
-)
+from agent_cli.history_manager import add_to_history
 from agent_cli.interactive_commands import (
     CONTEXT_KEY_AGENT,
     CONTEXT_KEY_CONFIG,
@@ -32,7 +28,16 @@ from agent_cli.session_manager import (
     save_session_state,
     update_session_state,
 )
-from agent_cli.ui import ui
+from agent_cli.ui import UI
+
+# Constants
+DUMMY_MODEL_NAME = "dummy"
+EXIT_COMMANDS = ["exit", "quit"]
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
 
 
 def read_file_content(filepath: str) -> Optional[str]:
@@ -40,20 +45,16 @@ def read_file_content(filepath: str) -> Optional[str]:
     try:
         path = Path(filepath)
         if not path.is_absolute():
-            # Try relative to current directory
             path = Path.cwd() / path
-        if not path.exists():
-            return None
-        if not path.is_file():
+        if not path.exists() or not path.is_file():
             return None
         return path.read_text(encoding="utf-8")
     except Exception:
         return None
 
 
-def process_file_references(text: str) -> tuple[str, list[str]]:
+def process_file_references(text: str, ui_instance: UI) -> tuple[str, list[str]]:
     """Process @filename references in text and return enhanced prompt with file contents."""
-    # Pattern to match @filename or @"filename with spaces"
     pattern = r'@("([^"]+)"|(\S+))'
     file_contents = []
     processed_text = text
@@ -63,12 +64,10 @@ def process_file_references(text: str) -> tuple[str, list[str]]:
         content = read_file_content(filename)
         if content:
             file_contents.append(f"File: {filename}\n{content}")
-            # Replace @filename with a reference
             processed_text = processed_text.replace(match.group(0), f"[File: {filename}]")
         else:
-            ui.print_warning(f"Could not read file '{filename}'")
+            ui_instance.print_warning(f"Could not read file '{filename}'")
 
-    # Prepend file contents to the prompt
     if file_contents:
         enhanced_prompt = "\n\n".join(file_contents) + "\n\nUser request: " + processed_text
     else:
@@ -77,14 +76,452 @@ def process_file_references(text: str) -> tuple[str, list[str]]:
     return enhanced_prompt, file_contents
 
 
-def show_interactive_help():
-    """Show help for interactive commands using the registry."""
-    # This is handled by the /help command now, effectively
-    pass
+def build_command_context(
+    agent, provider: str, model: str, stream: bool, history: list, config: Config, system_prompt
+) -> dict:
+    """Build context dictionary for command handlers."""
+    return {
+        CONTEXT_KEY_AGENT: agent,
+        CONTEXT_KEY_PROVIDER: provider,
+        CONTEXT_KEY_MODEL: model,
+        CONTEXT_KEY_STREAM: stream,
+        CONTEXT_KEY_HISTORY: history,
+        CONTEXT_KEY_CONFIG: config,
+        CONTEXT_KEY_SYSTEM_PROMPT: system_prompt,
+    }
+
+
+def create_agent_with_fallback(provider: str, model: str, config, system_prompt: str = None, ui=None):
+    """Create agent with fallback provider support.
+
+    Args:
+        provider: Primary provider name
+        model: Model name
+        config: Configuration object
+        system_prompt: Optional system prompt
+        ui: Optional UI instance for displaying messages
+
+    Returns:
+        Agent instance (either from primary or fallback provider)
+
+    Raises:
+        Exception: If both primary and fallback providers fail
+    """
+    from agent_cli.agents.factory import AgentFactory
+
+    # Try primary provider
+    try:
+        agent = AgentFactory.create(provider, model, config, system_prompt=system_prompt)
+        return agent
+    except Exception as primary_error:
+        # Check if fallback provider is configured
+        fallback_provider = config.fallback_provider
+
+        if fallback_provider and fallback_provider != provider:
+            if ui:
+                ui.print_warning(
+                    f"Primary provider '{provider}' failed: {str(primary_error)}"
+                )
+                ui.print_info(f"Attempting fallback to '{fallback_provider}'...")
+
+            try:
+                # Get default model for fallback provider
+                fallback_model = _get_default_model_for_provider(fallback_provider, config)
+                agent = AgentFactory.create(
+                    fallback_provider, fallback_model, config, system_prompt=system_prompt
+                )
+
+                if ui:
+                    ui.print_success(
+                        f"✓ Using fallback provider: {fallback_provider} with model {fallback_model}"
+                    )
+
+                return agent
+            except Exception as fallback_error:
+                if ui:
+                    ui.print_error(
+                        f"Fallback provider '{fallback_provider}' also failed: {str(fallback_error)}"
+                    )
+                raise fallback_error
+        else:
+            # No fallback configured, re-raise primary error
+            raise primary_error
+
+
+def _get_default_model_for_provider(provider: str, config) -> str:
+    """Get default model for a given provider."""
+    provider = provider.lower()
+    if provider == "ollama":
+        return config.default_ollama_model
+    elif provider == "openai":
+        return config.default_openai_model
+    elif provider == "anthropic":
+        return config.default_anthropic_model
+    elif provider == "google":
+        return config.default_google_model
+    else:
+        return ""
+
+
+def should_recreate_agent(
+    old_provider: str,
+    new_provider: str,
+    old_model: str,
+    new_model: str,
+    old_prompt,
+    new_prompt,
+) -> bool:
+    """Determine if agent needs recreation based on parameter changes."""
+    return old_provider != new_provider or old_model != new_model or old_prompt != new_prompt
+
+
+def setup_initial_provider_and_model(
+    provider: Optional[str],
+    model: Optional[str],
+    config: Config,
+    session_state: dict,
+) -> tuple[str, str]:
+    """Setup initial provider and model from CLI args, onboarding, or session state."""
+    from pathlib import Path
+
+    from dotenv import load_dotenv
+    from rich.console import Console
+
+    from agent_cli.interactive_onboarding import maybe_run_onboarding
+
+    # Check if first-run onboarding is needed
+    onboarding_provider = maybe_run_onboarding(Console())
+
+    if onboarding_provider:
+        # Reload .env file to pick up new variables
+        env_path = Path.cwd() / ".env"
+        if env_path.exists():
+            load_dotenv(env_path, override=True)
+        config = Config()  # Reload config
+
+        # Get default model for onboarded provider
+        if onboarding_provider == "ollama":
+            onboarded_model = config.default_ollama_model
+        elif onboarding_provider == "openai":
+            onboarded_model = config.default_openai_model
+        elif onboarding_provider == "anthropic":
+            onboarded_model = config.default_anthropic_model
+        elif onboarding_provider == "google":
+            onboarded_model = config.default_google_model
+        else:
+            onboarded_model = config.default_ollama_model
+
+        # CLI args override onboarding
+        current_provider = provider or onboarding_provider
+        current_model = model or onboarded_model
+    else:
+        # No onboarding, use session state or defaults
+        current_provider = provider or session_state.get("provider") or "ollama"
+        current_model = model or session_state.get("model") or config.default_ollama_model
+
+    return current_provider, current_model
+
+
+def load_and_setup_theme(config: Config, ui_instance: UI):
+    """Load saved theme from config and apply it."""
+    saved_theme = config.get_value("THEME")
+    if saved_theme and saved_theme in ui_instance.theme_manager.get_available_themes():
+        ui_instance.theme_manager.set_theme(saved_theme)
+
+
+def populate_model_autocomplete(agent, ui_instance: UI):
+    """Try to populate model list for autocomplete."""
+    try:
+        models = agent.list_models()
+        if models:
+            ui_instance.interactive_session.update_completion_models(models)
+    except Exception:
+        pass  # Fail silently for autocomplete loading
+
+
+def handle_chat_response(
+    agent,
+    prompt: str,
+    history: list,
+    stream: bool,
+    current_model: str,
+    ui_instance: UI,
+) -> str:
+    """Handle chat response with streaming or non-streaming mode."""
+    if stream:
+        # Using a simple header for stream start
+        ui_instance.console.print(f"\n[bold green]{current_model}[/bold green]:", end=" ")
+
+        response_parts = []
+
+        # Create a spinner while waiting for the first token
+        with ui_instance.create_spinner(f"Activating {current_model}..."):
+            stream_gen = agent.stream(prompt, history)
+            try:
+                first_token = next(stream_gen)
+            except StopIteration:
+                first_token = None
+
+        # Start printing
+        if first_token:
+            ui_instance.print_stream_chunk(first_token)
+            response_parts.append(first_token)
+
+        for token in stream_gen:
+            ui_instance.print_stream_chunk(token)
+            response_parts.append(token)
+
+        ui_instance.console.print("\n")
+        return "".join(response_parts)
+    else:
+        with ui_instance.create_spinner("Thinking..."):
+            response = agent.chat(prompt, history)
+        ui_instance.print_agent_response(response, current_model)
+        return response
+
+
+def update_context_from_command(
+    context: dict,
+    current_provider: str,
+    current_model: str,
+    current_stream: bool,
+    current_system_prompt,
+) -> tuple[str, str, bool, any]:
+    """Extract updated values from command context."""
+    new_provider = context.get(CONTEXT_KEY_PROVIDER, current_provider)
+    new_model = context.get(CONTEXT_KEY_MODEL, current_model)
+    new_stream = context.get(CONTEXT_KEY_STREAM, current_stream)
+    new_system_prompt = context.get(CONTEXT_KEY_SYSTEM_PROMPT, current_system_prompt)
+
+    return new_provider, new_model, new_stream, new_system_prompt
+
+
+# ============================================================================
+# INTERACTIVE MODE
+# ============================================================================
+
+
+def run_interactive_mode(
+    initial_provider: str,
+    initial_model: str,
+    initial_stream: bool,
+    config: Config,
+    ui_instance: UI,
+):
+    """Run the interactive chat loop."""
+    current_provider = initial_provider
+    current_model = initial_model
+    current_stream = initial_stream
+    current_system_prompt = None
+    history: list[dict[str, str]] = []
+
+    def create_agent():
+        """Create agent with current settings, with fallback support."""
+        return create_agent_with_fallback(
+            current_provider,
+            current_model,
+            config,
+            system_prompt=current_system_prompt,
+            ui=ui_instance,
+        )
+
+    # Show welcome and info
+    ui_instance.print_welcome()
+    if current_stream:
+        ui_instance.print_info("Streaming mode enabled.")
+
+    agent = create_agent()
+
+    # Load Ollama model if using ollama provider
+    if current_provider == "ollama":
+        from agent_cli.ollama_manager import get_ollama_manager
+
+        get_ollama_manager().load_model(current_model)
+
+    # Initialize interactive session status
+    ui_instance.interactive_session.update_status(current_provider, current_model)
+
+    # Load theme
+    load_and_setup_theme(config, ui_instance)
+
+    # Populate autocomplete
+    populate_model_autocomplete(agent, ui_instance)
+
+    # Main interactive loop
+    while True:
+        try:
+            # Get user input
+            user_input = ui_instance.interactive_session.prompt()
+
+            # Handle exit
+            if user_input.lower() in EXIT_COMMANDS:
+                break
+
+            # Handle empty input
+            if not user_input.strip():
+                continue
+
+            # Handle commands starting with /
+            if user_input.startswith("/"):
+                command_context = build_command_context(
+                    agent,
+                    current_provider,
+                    current_model,
+                    current_stream,
+                    history,
+                    config,
+                    current_system_prompt,
+                )
+
+                # Handle command via registry
+                handled = handle_command(user_input, command_context)
+
+                if handled:
+                    # Extract updated values
+                    (
+                        new_provider,
+                        new_model,
+                        new_stream,
+                        new_system_prompt,
+                    ) = update_context_from_command(
+                        command_context,
+                        current_provider,
+                        current_model,
+                        current_stream,
+                        current_system_prompt,
+                    )
+
+                    # Save to session if changed
+                    if (
+                        new_provider != current_provider
+                        or new_model != current_model
+                        or new_stream != current_stream
+                    ):
+                        update_session_state(
+                            provider=new_provider,
+                            model=new_model,
+                            stream=new_stream,
+                        )
+
+                    # Check if agent needs recreation
+                    agent_from_context = command_context.get(CONTEXT_KEY_AGENT)
+                    if agent_from_context and agent_from_context != agent:
+                        agent = agent_from_context
+                    elif should_recreate_agent(
+                        current_provider,
+                        new_provider,
+                        current_model,
+                        new_model,
+                        current_system_prompt,
+                        new_system_prompt,
+                    ):
+                        # Update current values first
+                        current_provider = new_provider
+                        current_model = new_model
+                        current_system_prompt = new_system_prompt
+                        agent = create_agent()
+
+                    # Update all current values
+                    current_provider = new_provider
+                    current_model = new_model
+                    current_stream = new_stream
+                    current_system_prompt = new_system_prompt
+
+                    # Update status bar
+                    ui_instance.interactive_session.update_status(current_provider, current_model)
+                else:
+                    ui_instance.print_error(
+                        f"Unknown command: {user_input}. Type /help for available commands."
+                    )
+                continue
+
+            # Process file references (@filename)
+            processed_prompt, file_refs = process_file_references(user_input, ui_instance)
+
+            # Update connection status
+            ui_instance.interactive_session.update_status(
+                current_provider, current_model, connected=True
+            )
+
+            # Get and handle response
+            response = handle_chat_response(
+                agent,
+                processed_prompt,
+                history,
+                current_stream,
+                current_model,
+                ui_instance,
+            )
+
+            # Update conversation history
+            history = add_to_history(history, "user", user_input)
+            history = add_to_history(history, "assistant", response)
+
+        except KeyboardInterrupt:
+            # Cleanup Ollama if used
+            if current_provider == "ollama":
+                from agent_cli.ollama_manager import get_ollama_manager
+
+                get_ollama_manager().cleanup()
+            ui_instance.print_info("\nExiting...")
+            break
+        except Exception as e:
+            ui_instance.interactive_session.update_status(
+                current_provider, current_model, connected=False
+            )
+            ui_instance.print_error(f"{e}")
+
+
+# ============================================================================
+# NON-INTERACTIVE MODE
+# ============================================================================
+
+
+def run_non_interactive_mode(
+    provider: str,
+    model: str,
+    prompt: str,
+    stream: bool,
+    config: Config,
+    ui_instance: UI,
+):
+    """Run a single non-interactive prompt."""
+    if not prompt:
+        ui_instance.print_error("Prompt is required in non-interactive mode.")
+        ui_instance.print_info("Run without --non-interactive for interactive mode or provide a prompt.")
+        return
+
+    # Process file references
+    processed_prompt, file_refs = process_file_references(prompt, ui_instance)
+    if file_refs:
+        ui_instance.print_info(f"Including {len(file_refs)} file(s) in prompt...")
+
+    try:
+        agent = AgentFactory.create(provider, model, config)
+        history: list[dict[str, str]] = []
+
+        if stream:
+            # Stream to stdout for piping
+            for token in agent.stream(processed_prompt, history):
+                sys.stdout.write(token)
+                sys.stdout.flush()
+            sys.stdout.write("\n")
+        else:
+            # Simple print for piping
+            response = agent.chat(processed_prompt, history)
+            print(response)
+    except Exception as e:
+        ui_instance.print_error(f"{e}")
+        sys.exit(1)
+
+
+# ============================================================================
+# CLICK COMMANDS
+# ============================================================================
 
 
 @click.group()
-@click.version_option(version="0.1.0")
+@click.version_option(version="1.1.0")
 def cli():
     """Agent CLI - A custom LLM CLI with local and external agent support."""
     pass
@@ -96,7 +533,7 @@ def cli():
     "-p",
     required=False,
     type=click.Choice(["ollama", "openai", "anthropic", "google"], case_sensitive=False),
-    help="Provider to use (ollama, openai, anthropic, google). If not specified, uses last session provider.",
+    help="Provider to use. If not specified, uses last session provider.",
 )
 @click.option(
     "--model",
@@ -110,78 +547,25 @@ def cli():
 def chat(provider, model, non_interactive, stream, prompt):
     """Chat with an LLM agent."""
     config = Config()
-
-    # Load session state
+    ui_instance = UI()
     session_state = get_session_state()
+    interactive_mode = not non_interactive
 
-    # Use provided values, or fall back to session state (for interactive mode)
-    interactive = not non_interactive
-    if interactive:
-        # Check if first-run onboarding is needed
-        from rich.console import Console
-
-        from agent_cli.interactive_onboarding import maybe_run_onboarding
-
-        onboarding_provider = maybe_run_onboarding(Console())
-        if onboarding_provider:
-            # Use the provider from onboarding
-            current_provider = onboarding_provider
-            # Reload .env file to pick up new variables
-            from pathlib import Path
-
-            from dotenv import load_dotenv
-
-            env_path = Path.cwd() / ".env"
-            if env_path.exists():
-                load_dotenv(env_path, override=True)
-            config = Config()  # Reload config to pick up new env vars
-            if onboarding_provider == "ollama":
-                current_model = config.default_ollama_model
-            elif onboarding_provider == "openai":
-                current_model = config.default_openai_model
-            elif onboarding_provider == "anthropic":
-                current_model = config.default_anthropic_model
-            elif onboarding_provider == "google":
-                current_model = config.default_google_model
-
-        # In interactive mode, use session state if provider/model not specified
-        if not onboarding_provider:
-            current_provider = provider or session_state.get("provider") or "ollama"
-            current_model = model or session_state.get("model") or config.default_ollama_model
-        else:
-            # Use onboarding values, but allow CLI overrides
-            current_provider = provider or current_provider
-            current_model = model or current_model
-        current_stream = stream if stream else session_state.get("stream", False)
-        current_system_prompt = None  # Start with no system prompt
-    else:
-        # In non-interactive mode (when --non-interactive is used), provider and model are required
-        if not provider or not model:
-            ui.print_error("--provider and --model are required in non-interactive mode.")
-            if session_state:
-                ui.print_info(
-                    f"Last session used: {session_state.get('provider')} / {session_state.get('model')}"
-                )
-                ui.print_info(
-                    "Run without --non-interactive to continue with last session, or specify --provider and --model."
-                )
-            sys.exit(1)
-        current_provider = provider
-        current_model = model
-        current_stream = stream
-        current_system_prompt = None
-
-    # Validate model (warn if not in metadata, but don't fail)
-    if not ModelFactory.validate_model(current_provider, current_model):
-        ui.print_warning(
-            f"Model '{current_model}' not found in metadata for provider '{current_provider}'."
+    if interactive_mode:
+        # Interactive mode
+        current_provider, current_model = setup_initial_provider_and_model(
+            provider, model, config, session_state
         )
-        ui.print_info("Proceeding anyway, but some features may not work optimally.")
-        ui.print_info("Use 'agent-cli list-models' to see available models.")
+        current_stream = stream if stream else session_state.get("stream", False)
 
-    # Save initial state to session
-    interactive = not non_interactive
-    if interactive:
+        # Validate model
+        if not ModelFactory.validate_model(current_provider, current_model):
+            ui_instance.print_warning(
+                f"Model '{current_model}' not found in metadata for provider '{current_provider}'."
+            )
+            ui_instance.print_info("Proceeding anyway, but some features may not work optimally.")
+
+        # Save initial state
         save_session_state(
             {
                 "provider": current_provider,
@@ -190,353 +574,34 @@ def chat(provider, model, non_interactive, stream, prompt):
             }
         )
 
-    # Conversation history for context
-    history: list[dict[str, str]] = []
-
-    def create_agent():
-        """Create agent with current provider and model."""
-        return AgentFactory.create(
-            current_provider, current_model, config, system_prompt=current_system_prompt
+        run_interactive_mode(
+            current_provider,
+            current_model,
+            current_stream,
+            config,
+            ui_instance,
         )
-
-    interactive = not non_interactive
-    if interactive:
-        ui.print_welcome()
-        ui.print_info(
-            f"Using [bold]{current_provider}[/bold] with model [bold]{current_model}[/bold]"
-        )
-        if current_stream:
-            ui.print_info("Streaming mode enabled.")
-
-        agent = create_agent()
-
-        # Load Ollama model if using ollama provider
-        if current_provider == "ollama":
-            from agent_cli.ollama_manager import get_ollama_manager
-
-            ollama_mgr = get_ollama_manager()
-            ollama_mgr.load_model(current_model)
-
-        # Initialize interactive session status
-        ui.interactive_session.update_status(current_provider, current_model)
-
-        # Load theme from config if set
-        saved_theme = config.get_value("THEME")
-        if saved_theme and saved_theme in ui.theme_manager.get_available_themes():
-            ui.theme_manager.set_theme(saved_theme)
-
-        # Attempt to populate model list for autocomplete
-        try:
-            models = agent.list_models()
-            if models:
-                ui.interactive_session.update_completion_models(models)
-                # ui.print_info(f"Loaded {len(models)} models for autocomplete.")
-        except Exception:
-            pass  # Fail silently for autocomplete loading
-
-        while True:
-            try:
-                # Initialize variables that might be used in exception handling or cleanup
-                response_parts = []
-
-                # Use InteractiveSession for prompt input
-                user_input = ui.interactive_session.prompt()
-
-                # Handle exit
-                if user_input.lower() in ["exit", "quit"]:
-                    break
-
-                # Handle empty input
-                if not user_input.strip():
-                    continue
-
-                # Handle commands starting with / using the registry
-                if user_input.startswith("/"):
-                    parts = user_input.split()
-                    cmd = parts[0].lower()
-                    args = parts[1:] if len(parts) > 1 else []
-
-                    if cmd == "/compress":
-                        if not history:
-                            ui.print_warning("No history to compress.")
-                            continue
-
-                        ui.print_info("Compressing conversation history...")
-                        with ui.create_spinner("Summarizing context..."):
-                            summary_prompt = "Summarize our conversation so far into a concise context string that captures all key information, decisions, and current state. Do not lose important details."
-                            summary = agent.chat(summary_prompt, history=history)
-
-                        # Replace history with summary
-                        history = [
-                            {"role": "user", "content": "Previous Context Summary: " + summary},
-                            {"role": "assistant", "content": "Understood. I have the context."},
-                        ]
-                        ui.print_success("Context compressed!")
-                        continue
-
-                    elif cmd == "/beads":
-                        bd_path = shutil.which("bd")
-
-                        # Handle installation if missing
-                        if not bd_path:
-                            ui.print_warning("Beads CLI ('bd') not found.")
-
-                            # Check for Homebrew
-                            brew_path = shutil.which("brew")
-                            if brew_path:
-                                try:
-                                    response = ui.interactive_session.session.prompt(
-                                        "Install 'bd' via Homebrew? (y/n) > "
-                                    )
-                                    if response.lower().startswith("y"):
-                                        ui.print_info("Running: brew tap steveyegge/beads")
-                                        subprocess.run(
-                                            [brew_path, "tap", "steveyegge/beads"], check=True
-                                        )
-
-                                        ui.print_info("Running: brew install bd")
-                                        subprocess.run([brew_path, "install", "bd"], check=True)
-
-                                        bd_path = shutil.which("bd")
-                                        if bd_path:
-                                            ui.print_success(
-                                                f"Beads installed successfully at {bd_path}!"
-                                            )
-                                        else:
-                                            ui.print_error(
-                                                "Installation appeared to succeed but 'bd' is still not found."
-                                            )
-                                except subprocess.CalledProcessError as e:
-                                    ui.print_error(f"Installation failed: {e}")
-                                except Exception as e:
-                                    ui.print_error(f"Error during installation: {e}")
-
-                            if not bd_path:
-                                ui.print_info("Please install manually:")
-                                ui.print_info("  brew tap steveyegge/beads && brew install bd")
-                                ui.print_info("  -or-")
-                                ui.print_info(
-                                    "  curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
-                                )
-                                continue
-
-                        subcmd = args[0] if args else "status"
-
-                        try:
-                            if subcmd == "context":
-                                # For now, status serves as context check
-                                result = subprocess.run(
-                                    [bd_path, "status"], capture_output=True, text=True, check=True
-                                )
-                                ui.print_panel(result.stdout, title="Beads Context", style="blue")
-                            else:  # Default to status
-                                result = subprocess.run(
-                                    [bd_path, "status"], capture_output=True, text=True, check=True
-                                )
-                                ui.print_panel(result.stdout, title="Beads Status", style="blue")
-                        except subprocess.CalledProcessError as e:
-                            # 'bd' might return non-zero if not initialized
-                            ui.print_warning(
-                                f"Beads returned error (is it initialized?): {e.stderr.strip() if e.stderr else e.stdout.strip()}"
-                            )
-                            ui.print_info(
-                                "Try running 'bd init' in the project folder matching this session."
-                            )
-                        except FileNotFoundError:
-                            # Should not happen given check above, but safe to keep
-                            ui.print_error(f"Beads CLI ('bd') not found at '{bd_path}'.")
-                        except Exception as e:
-                            ui.print_error(f"An unexpected error occurred while running beads: {e}")
-                        continue
-
-                    elif cmd == "/keepalive":
-                        if args:
-                            if hasattr(agent, "set_keep_alive"):
-                                agent.set_keep_alive(args[0])
-                                ui.print_success(f"Keep-alive set to {args[0]}")
-                            else:
-                                ui.print_warning("Keep-alive is only supported for Ollama agents.")
-                        else:
-                            ui.print_info(
-                                f"Current keep-alive: {getattr(agent, 'keep_alive', 'N/A')}"
-                            )
-                            ui.print_info("Usage: /keepalive 10m (only for Ollama)")
-                        continue
-
-                    elif cmd == "/reasoning":
-                        # Toggle reasoning logic (if any)
-                        # For now just a placeholder toggle or info
-                        ui.print_info(
-                            "Reasoning display toggle: currently always enabled for raw stream."
-                        )
-                        continue
-
-                    # Build context for command handlers
-                    command_context = {
-                        CONTEXT_KEY_AGENT: agent,
-                        CONTEXT_KEY_PROVIDER: current_provider,
-                        CONTEXT_KEY_MODEL: current_model,
-                        CONTEXT_KEY_STREAM: current_stream,
-                        CONTEXT_KEY_HISTORY: history,
-                        CONTEXT_KEY_CONFIG: config,
-                        CONTEXT_KEY_SYSTEM_PROMPT: current_system_prompt,
-                    }
-
-                    # Handle command via registry
-                    handled = handle_command(user_input, command_context)
-
-                    if handled:
-                        # Update local variables from context (in case command changed them)
-                        new_provider = command_context.get(CONTEXT_KEY_PROVIDER, current_provider)
-                        new_model = command_context.get(CONTEXT_KEY_MODEL, current_model)
-                        new_stream = command_context.get(CONTEXT_KEY_STREAM, current_stream)
-                        new_system_prompt = command_context.get(
-                            CONTEXT_KEY_SYSTEM_PROMPT, current_system_prompt
-                        )
-
-                        # Save to session if changed
-                        if (
-                            new_provider != current_provider
-                            or new_model != current_model
-                            or new_stream != current_stream
-                        ):
-                            update_session_state(
-                                provider=new_provider,
-                                model=new_model,
-                                stream=new_stream,
-                            )
-
-                        current_provider = new_provider
-                        current_model = new_model
-                        current_stream = new_stream
-                        current_system_prompt = new_system_prompt
-
-                        # Update agent if provider/model/system_prompt changed
-                        needs_refresh = False
-                        if agent != command_context.get(CONTEXT_KEY_AGENT, agent):
-                            agent = command_context.get(CONTEXT_KEY_AGENT, agent)
-                        elif (
-                            new_model != command_context.get(CONTEXT_KEY_MODEL, current_model)
-                            or new_provider
-                            != command_context.get(CONTEXT_KEY_PROVIDER, current_provider)
-                            or new_system_prompt
-                            != command_context.get(CONTEXT_KEY_SYSTEM_PROMPT, current_system_prompt)
-                        ):  # Check if these differ from what they were BEFORE command
-                            # Actually check against current_ vars is redundant if we just updated them.
-                            # We need to detect if command changed them.
-                            # Easier: just always recreate if agent wasn't explicitly replaced but params are different from what agent has
-                            # But agent doesn't expose system_prompt easily unless we modify base again.
-                            # Simpler: just set needs_refresh = True if they changed in context
-                            needs_refresh = True
-
-                        if needs_refresh:
-                            agent = create_agent()
-                            # Re-apply properties if needed (like keep_alive)
-                            # Note: new agent will have default keep_alive. Ideally we preserve it.
-                            # But for now user has to re-set it if they switch models.
-
-                        # Update status bar
-                        ui.interactive_session.update_status(current_provider, current_model)
-                    else:
-                        ui.print_error(
-                            f"Unknown command: {user_input}. Type /help for available commands."
-                        )
-                    continue
-
-                # Process file references (@filename)
-                processed_prompt, file_refs = process_file_references(user_input)
-
-                # Check connection before chatting (optional optimization)
-                ui.interactive_session.update_status(
-                    current_provider, current_model, connected=True
-                )  # Assume connected until error
-
-                if current_stream:
-                    # Using a simple header for stream start
-                    ui.console.print(f"\n[bold green]{current_model}[/bold green]:", end=" ")
-
-                    response_parts = []
-
-                    # Create a spinner while waiting for the first token
-                    with ui.create_spinner(f"Activating {current_model}..."):
-                        # Get the generator
-                        stream_gen = agent.stream(processed_prompt, history)
-                        # Fetch first token to "break" the spinner lock
-                        try:
-                            first_token = next(stream_gen)
-                        except StopIteration:
-                            first_token = None
-
-                    # Start printing
-                    if first_token:
-                        ui.print_stream_chunk(first_token)
-                        response_parts.append(first_token)
-
-                    for token in stream_gen:
-                        ui.print_stream_chunk(token)
-                        response_parts.append(token)
-                    ui.console.print("\n")
-                    response = "".join(response_parts)
-                else:
-                    with ui.create_spinner("Thinking..."):
-                        response = agent.chat(processed_prompt, history)
-                    ui.print_agent_response(response, current_model)
-
-                # Update conversation history with automatic compaction
-                history = add_to_history(history, "user", user_input)
-                history = add_to_history(history, "assistant", response)
-
-            except KeyboardInterrupt:
-                # Cleanup Ollama if used
-                if current_provider == "ollama":
-                    from agent_cli.ollama_manager import get_ollama_manager
-
-                    get_ollama_manager().cleanup()
-                ui.print_info("\nExiting...")
-                break
-            except Exception as e:
-                ui.interactive_session.update_status(
-                    current_provider, current_model, connected=False
-                )
-                ui.print_error(f"{e}")
     else:
-        if not prompt:
-            ui.print_error("Prompt is required in non-interactive mode.")
-            ui.print_info("Run without --non-interactive for interactive mode or provide a prompt.")
-            return
-
-        # Process file references (@filename)
-        processed_prompt, file_refs = process_file_references(prompt)
-        if file_refs:
-            ui.print_info(f"Including {len(file_refs)} file(s) in prompt...")
-
-        try:
-            agent = create_agent()
-            if stream:
-                for token in agent.stream(processed_prompt, history):
-                    print(
-                        token, end="", flush=True
-                    )  # Keep raw print for pipe-ability in non-interactive? Or use ui?
-                    # If non-interactive is used for scripting, raw strings are better.
-                    # But the user asked for UI update. Assuming interactive usage is primary target.
-                    # Let's use standard print for non-interactive to be safe for pipes,
-                    # OR use ui.console.print with markup=False if we want raw.
-                    # actually the 'stream' flag in CLI usually implies human consumption.
-                    # If piping, usually no stream.
-                    pass
-                # Implementation for non-interactive stream:
-                for token in agent.stream(processed_prompt, history):
-                    sys.stdout.write(token)
-                    sys.stdout.flush()
-                sys.stdout.write("\n")
-            else:
-                response = agent.chat(processed_prompt, history)
-                # For non-interactive, just print the response content?
-                # Or styled? Let's keep it simple for pipes:
-                print(response)
-        except Exception as e:
-            ui.print_error(f"{e}")
+        # Non-interactive mode
+        if not provider or not model:
+            ui_instance.print_error("--provider and --model are required in non-interactive mode.")
+            if session_state:
+                ui_instance.print_info(
+                    f"Last session used: {session_state.get('provider')} / {session_state.get('model')}"
+                )
+                ui_instance.print_info(
+                    "Run without --non-interactive to continue with last session, or specify --provider and --model."
+                )
             sys.exit(1)
+
+        run_non_interactive_mode(
+            provider,
+            model,
+            prompt,
+            stream,
+            config,
+            ui_instance,
+        )
 
 
 @cli.command()
@@ -550,28 +615,26 @@ def chat(provider, model, non_interactive, stream, prompt):
 def list_models(provider, detailed):
     """List available models for each provider."""
     config = Config()
+    ui_instance = UI()
 
     # Get models from ModelFactory
     all_models = ModelFactory.get_available_models(provider)
 
     if not all_models:
-        ui.print_info("No models found.")
+        ui_instance.print_info("No models found.")
         return
 
     for prov, models in sorted(all_models.items()):
         provider_display = prov.capitalize()
 
-        rows = []
-
         if prov == "ollama":
             provider_display = "Ollama (Local)"
             try:
-                agent = AgentFactory.create("ollama", "dummy", config)
+                agent = AgentFactory.create("ollama", DUMMY_MODEL_NAME, config)
                 actual_models = agent.list_models()
                 if actual_models:
-                    for model in actual_models:
-                        rows.append([model, "Local", ""])
-                    ui.print_table(provider_display, ["Model", "Context", "Max Tokens"], rows)
+                    rows = [[model, "Local", ""] for model in actual_models]
+                    ui_instance.print_table(provider_display, ["Model", "Context", "Max Tokens"], rows)
                     continue
             except Exception:
                 pass
@@ -591,20 +654,21 @@ def list_models(provider, detailed):
             else:
                 table_rows.append([model_name, "-", "-"])
 
-        ui.print_table(provider_display, ["Model", "Context", "Max Tokens"], table_rows)
+        ui_instance.print_table(provider_display, ["Model", "Context", "Max Tokens"], table_rows)
 
 
 @cli.command()
 def config():
     """Show current configuration."""
     config = Config()
+    ui_instance = UI()
     rows = [
         ["Ollama URL", config.ollama_base_url],
         ["OpenAI API Key", "Set" if config.openai_api_key else "Not set"],
         ["Anthropic API Key", "Set" if config.anthropic_api_key else "Not set"],
         ["Google API Key", "Set" if config.google_api_key else "Not set"],
     ]
-    ui.print_table("Configuration", ["Setting", "Value"], rows)
+    ui_instance.print_table("Configuration", ["Setting", "Value"], rows)
 
 
 @cli.group()
@@ -618,11 +682,12 @@ def mcp():
 def mcp_list(detailed):
     """List configured MCP servers."""
     config = Config()
+    ui_instance = UI()
     servers = config.get_mcp_servers()
 
     if not servers:
-        ui.print_info("No MCP servers configured.")
-        ui.print_info("To add a server, use: agent-cli mcp add <name> <command> [args...]")
+        ui_instance.print_info("No MCP servers configured.")
+        ui_instance.print_info("To add a server, use: agent-cli mcp add <name> <command> [args...]")
         return
 
     rows = []
@@ -632,7 +697,7 @@ def mcp_list(detailed):
         env_count = len(server_config.get("env", {}))
         rows.append([name, f"{cmd} {args}", str(env_count)])
 
-    ui.print_table("MCP Servers", ["Name", "Command", "Env Vars"], rows)
+    ui_instance.print_table("MCP Servers", ["Name", "Command", "Env Vars"], rows)
 
 
 @mcp.command("add")
@@ -644,6 +709,7 @@ def mcp_list(detailed):
 def mcp_add(name, command, args, env, validate):
     """Add or update an MCP server configuration."""
     config = Config()
+    ui_instance = UI()
 
     # Parse environment variables
     env_dict = {}
@@ -652,25 +718,25 @@ def mcp_add(name, command, args, env, validate):
             key, value = env_var.split("=", 1)
             env_dict[key] = value
         else:
-            ui.print_warning(f"Invalid environment variable format '{env_var}'. Use KEY=VALUE")
+            ui_instance.print_warning(f"Invalid environment variable format '{env_var}'. Use KEY=VALUE")
 
     try:
         config.add_mcp_server(
             name, command, list(args) if args else None, env_dict if env_dict else None
         )
-        ui.print_success(f"MCP server '{name}' added successfully.")
+        ui_instance.print_success(f"MCP server '{name}' added successfully.")
 
         if validate:
             import shutil
 
             cmd_name = command.split()[0] if command else command
             if shutil.which(cmd_name):
-                ui.print_success(f"Command '{cmd_name}' found in PATH")
+                ui_instance.print_success(f"Command '{cmd_name}' found in PATH")
             else:
-                ui.print_warning(f"Command '{cmd_name}' not found in PATH")
-                ui.print_info("Make sure the command is available when the MCP server runs.")
+                ui_instance.print_warning(f"Command '{cmd_name}' not found in PATH")
+                ui_instance.print_info("Make sure the command is available when the MCP server runs.")
     except Exception as e:
-        ui.print_error(f"Error adding MCP server: {e}")
+        ui_instance.print_error(f"Error adding MCP server: {e}")
         sys.exit(1)
 
 
@@ -680,20 +746,21 @@ def mcp_add(name, command, args, env, validate):
 def mcp_remove(name, force):
     """Remove an MCP server configuration."""
     config = Config()
+    ui_instance = UI()
     servers = config.get_mcp_servers()
 
     if name not in servers:
-        ui.print_error(f"MCP server '{name}' not found.")
+        ui_instance.print_error(f"MCP server '{name}' not found.")
         sys.exit(1)
 
     if not force and not click.confirm(f"Remove MCP server '{name}'?"):
-        ui.print_info("Cancelled.")
+        ui_instance.print_info("Cancelled.")
         return
 
     if config.remove_mcp_server(name):
-        ui.print_success(f"MCP server '{name}' removed successfully.")
+        ui_instance.print_success(f"MCP server '{name}' removed successfully.")
     else:
-        ui.print_error(f"Error removing MCP server '{name}'.")
+        ui_instance.print_error(f"Error removing MCP server '{name}'.")
         sys.exit(1)
 
 
@@ -702,14 +769,15 @@ def mcp_remove(name, force):
 def mcp_show(name):
     """Show detailed information about an MCP server."""
     config = Config()
+    ui_instance = UI()
     servers = config.get_mcp_servers()
 
     if name not in servers:
-        ui.print_error(f"MCP server '{name}' not found.")
+        ui_instance.print_error(f"MCP server '{name}' not found.")
         sys.exit(1)
 
     server_config = servers[name]
-    ui.print_info(f"MCP Server: {name}")  # Could use panel
+    ui_instance.print_info(f"MCP Server: {name}")
 
     content = f"**Command:** `{server_config.get('command', 'N/A')}`\n\n"
     if server_config.get("args"):
@@ -721,7 +789,7 @@ def mcp_show(name):
             display_value = value if len(value) < 50 else value[:30] + "..." + value[-10:]
             content += f"- {key}={display_value}\n"
 
-    ui.print_markdown(content)
+    ui_instance.print_markdown(content)
 
 
 @cli.command()

@@ -31,6 +31,94 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-12-17
+
+### Added
+- **Fallback Provider Support**: Automatic failover when primary provider is unavailable
+  - Configure via `PRIMARY_PROVIDER` and `FALLBACK_PROVIDER` settings
+  - Seamless switching with user notification
+  - Works across all providers (Ollama, OpenAI, Anthropic, Google)
+- **Keyboard-Driven UI Components**:
+  - Multi-select menu with arrow keys and spacebar selection
+  - Single-select menu for provider/model/theme selection
+  - Visual feedback with checkboxes and highlighting
+  - Used in onboarding wizard and throughout the app
+- **11 Beautiful Themes**:
+  - catppuccin, dracula, nord, tokyo-night, gruvbox
+  - monokai, solarized, one-dark, synthwave, simple, default
+  - Switch themes with `/theme` command
+  - Themed completion menus with consistent styling
+- **Auto-Popup Completion Menus**:
+  - Type `/` to instantly see all available commands
+  - Completion menu appears automatically while typing
+  - FloatContainer-based implementation for proper z-ordering
+  - Themed styling matching selected theme
+- **Nerd Font Icon Support**:
+  - Provider icons using Nerd Fonts (󰝰 for Ollama, etc.)
+  - Automatic fallback to emoji when Nerd Fonts unavailable
+  - Detection based on fc-list command availability
+  - Configurable in settings
+- **Ollama Keep-Alive Timer Display**:
+  - Real-time countdown timer in status bar (⏱️ 4m 23s)
+  - Shows time remaining before model unloads
+  - Right-aligned in status display
+  - Updates automatically during conversation
+- **Model Name in Prompt**:
+  - Shows current model in every prompt (e.g., "🦙 llama3.3 | You ➜")
+  - Provider icon + shortened model name
+  - Consistent formatting across all providers
+- **Project Initialization Enhancements**:
+  - `/init` command creates project-specific configs
+  - Support for `.agent.yml` and provider-specific markdown files
+  - Template system for common project types
+- **Status Bar Improvements**:
+  - Provider icon in status bar
+  - Model name display
+  - Keep-alive timer (for Ollama)
+  - Right-aligned status information
+- **Design Documentation**:
+  - `INIT_SUPERPOWER_DESIGN.md` - Comprehensive design for super-powered `/init`
+  - `BEADS_SUPER_INIT_DESIGN.md` - Deep Beads integration design
+  - `MENU_CONSISTENCY.md` - UI menu system documentation
+  - `BEAUTIFICATION_SUMMARY.md` - UI improvements summary
+  - `ONBOARDING_IMPROVEMENTS.md` - Onboarding flow documentation
+
+### Changed
+- **Improved Onboarding Wizard**:
+  - Multi-select UI for provider selection
+  - Keyboard navigation with arrow keys and spacebar
+  - Visual confirmation of selections
+  - Provider-specific setup flows
+- **Enhanced Interactive Mode**:
+  - Better prompt formatting with model name
+  - Consistent menu styling across all themes
+  - Improved completion menu visibility
+- **Status Line Display**:
+  - Moved to top-right of screen
+  - Shows provider, model, and timer
+  - Right-justified for better visual balance
+- **README and Documentation**:
+  - Complete rewrite with comprehensive feature documentation
+  - Added installation instructions with Nerd Font setup
+  - Detailed configuration examples
+  - Usage examples for all major features
+  - Slash command reference table
+  - Development setup guide
+- **Roadmap Planning**:
+  - Created `ROADMAP.md` with 5-phase development plan
+  - Phase 1: Super Init - Basic (70% complete)
+  - Phase 2: Deep Integration (planned)
+  - Phase 3: Team Features (planned)
+  - Success metrics for each phase
+  - Long-term vision through 2026+
+
+### Fixed
+- Completion menu visibility issue (FloatContainer implementation)
+- Ollama timer display in status bar
+- Status line formatting and alignment
+- Menu styling inconsistencies across themes
+- Provider icon display with Nerd Font fallback
+
 ## [Unreleased]
 
 ### Added

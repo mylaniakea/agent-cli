@@ -95,6 +95,10 @@ class Config:
         self.default_anthropic_model = self._get_value("DEFAULT_ANTHROPIC_MODEL", "claude-3-haiku")
         self.default_google_model = self._get_value("DEFAULT_GOOGLE_MODEL", "gemini-pro")
 
+        # Provider preferences
+        self.primary_provider = self._get_value("PRIMARY_PROVIDER", "")
+        self.fallback_provider = self._get_value("FALLBACK_PROVIDER", "")
+
     def _get_value(self, key: str, default: str = "") -> str:
         """Get configuration value with priority: env > ini > .env > default.
 
@@ -151,6 +155,10 @@ class Config:
             self.default_anthropic_model = value
         elif key_lower == "default_google_model":
             self.default_google_model = value
+        elif key_lower == "primary_provider":
+            self.primary_provider = value
+        elif key_lower == "fallback_provider":
+            self.fallback_provider = value
 
     def get_value(self, key: str, default: str = "") -> str:
         """Get a configuration value.

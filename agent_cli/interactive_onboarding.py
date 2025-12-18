@@ -61,24 +61,23 @@ You can configure one or more providers:
         )
         return None
 
-    # Provider selection with checkboxes
-    console.print("\n[bold cyan]Select providers to configure:[/bold cyan]")
-    console.print("[dim]Press space to select, enter when done[/dim]\n")
+    # Provider selection with keyboard + spacebar multi-select
+    from agent_cli.interactive_select import MultiSelect
 
-    # Simple multi-select using inquirer-style prompts
-    providers = []
+    provider_options = [
+        {"key": "openai", "label": "OpenAI (GPT-4, o1)", "icon": "🤖"},
+        {"key": "anthropic", "label": "Anthropic (Claude)", "icon": "🧠"},
+        {"key": "google", "label": "Google (Gemini)", "icon": "✨"},
+        {"key": "ollama", "label": "Ollama (Local)", "icon": "🦙"},
+    ]
 
-    if Confirm.ask("  🤖 OpenAI (GPT-4, o1)", default=False, console=console):
-        providers.append("openai")
+    multi_select = MultiSelect(
+        options=provider_options,
+        title="Select providers to configure:",
+        console=console,
+    )
 
-    if Confirm.ask("  🧠 Anthropic (Claude)", default=False, console=console):
-        providers.append("anthropic")
-
-    if Confirm.ask("  ✨ Google (Gemini)", default=False, console=console):
-        providers.append("google")
-
-    if Confirm.ask("  🦙 Ollama (Local)", default=False, console=console):
-        providers.append("ollama")
+    providers = multi_select.show()
 
     if not providers:
         console.print(
@@ -99,10 +98,99 @@ You can configure one or more providers:
     if configured:
         console.print("\n[green bold]✅ Setup complete![/green bold]")
         console.print(f"[dim]Configured providers: {', '.join(configured)}[/dim]\n")
-        # Return first configured as default
-        return configured[0]
+
+        # Select primary provider
+        primary_provider = configured[0]  # Default to first
+        if len(configured) > 1:
+            from agent_cli.interactive_select import SingleSelect
+
+            primary_options = [
+                {"key": p, "label": _get_provider_display_name(p), "icon": _get_provider_icon(p)}
+                for p in configured
+            ]
+
+            console.print()
+            single_select = SingleSelect(
+                options=primary_options,
+                title="Select your PRIMARY provider:",
+                instruction="This will be your default provider. Use ↑/↓, then ENTER",
+                default_index=0,
+                console=console,
+            )
+
+            selected = single_select.show()
+            if selected:
+                primary_provider = selected
+
+        # Select fallback provider (optional)
+        fallback_provider = None
+        if len(configured) > 1:
+            console.print()
+            fallback_options = [
+                {"key": "none", "label": "No fallback (skip)", "icon": "⊘"}
+            ] + [
+                {"key": p, "label": _get_provider_display_name(p), "icon": _get_provider_icon(p)}
+                for p in configured
+                if p != primary_provider
+            ]
+
+            single_select = SingleSelect(
+                options=fallback_options,
+                title="Select a FALLBACK provider (optional):",
+                instruction="Used when primary provider fails. Use ↑/↓, then ENTER",
+                default_index=0,
+                console=console,
+            )
+
+            selected = single_select.show()
+            if selected and selected != "none":
+                fallback_provider = selected
+
+        # Save primary and fallback to config
+        from agent_cli.config import Config
+
+        config = Config()
+        config.set_value("PRIMARY_PROVIDER", primary_provider)
+
+        if fallback_provider:
+            config.set_value("FALLBACK_PROVIDER", fallback_provider)
+            console.print(
+                f"\n[green]✓[/green] Primary: {_get_provider_icon(primary_provider)} {primary_provider.title()}"
+            )
+            console.print(
+                f"[green]✓[/green] Fallback: {_get_provider_icon(fallback_provider)} {fallback_provider.title()}\n"
+            )
+        else:
+            console.print(
+                f"\n[green]✓[/green] Primary: {_get_provider_icon(primary_provider)} {primary_provider.title()}\n"
+            )
+
+        # Return primary provider
+        return primary_provider
 
     return None
+
+
+def _get_provider_icon(provider: str) -> str:
+    """Get icon for provider."""
+    icons = {
+        "openai": "🤖",
+        "anthropic": "🧠",
+        "google": "✨",
+        "ollama": "🦙",
+    }
+    return icons.get(provider, "💬")
+
+
+def _get_provider_display_name(provider: str) -> str:
+    """Get display name for provider."""
+    names = {
+        "openai": "OpenAI",
+        "anthropic": "Anthropic",
+        "google": "Google",
+        "ollama": "Ollama",
+    }
+    return names.get(provider, provider.title())
 
 
 def maybe_run_onboarding(console: Console) -> Optional[str]:

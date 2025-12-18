@@ -44,7 +44,7 @@ dev = [
 ]
 
 [project.scripts]
-agent = "agent_cli.cli:main"
+agent-cli = "agent_cli.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
