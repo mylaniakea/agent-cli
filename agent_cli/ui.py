@@ -380,53 +380,60 @@ class InteractiveSession:
         def __init__(self):
             self.visible = False
             self.selected_index = 0
-            self.commands = []  # List of (cmd, description) tuples
+            self.items = []  # List of Completion objects
 
-        def show(self, commands):
-            """Show menu with given commands."""
-            self.commands = commands
+        def show(self, items):
+            """Show menu with given items (completions)."""
+            self.items = items
             self.visible = True
             self.selected_index = 0
 
         def hide(self):
             """Hide the menu."""
             self.visible = False
-            self.commands = []
+            self.items = []
             self.selected_index = 0
 
         def move_up(self):
             """Move selection up."""
-            if self.commands:
+            if self.items:
                 self.selected_index = max(0, self.selected_index - 1)
 
         def move_down(self):
             """Move selection down."""
-            if self.commands:
-                self.selected_index = min(len(self.commands) - 1, self.selected_index + 1)
+            if self.items:
+                self.selected_index = min(len(self.items) - 1, self.selected_index + 1)
 
         def get_selected(self):
-            """Get currently selected command."""
-            if self.commands and 0 <= self.selected_index < len(self.commands):
-                return self.commands[self.selected_index][0]
+            """Get currently selected Completion."""
+            if self.items and 0 <= self.selected_index < len(self.items):
+                return self.items[self.selected_index]
             return None
 
         def render(self):
             """Render menu as formatted text in spreadsheet style."""
-            if not self.visible or not self.commands:
+            if not self.visible or not self.items:
                 return []
 
             lines = []
             # Top border with title
             lines.append(("class:menu.border", "╔══════════════════╦══════════════════════════════════════════════╗\n"))
             lines.append(("class:menu.border", "║ "))
-            lines.append(("class:menu.title", "Command          "))
+            lines.append(("class:menu.title", "Option           "))
             lines.append(("class:menu.border", "║ "))
             lines.append(("class:menu.title", "Description                                  "))
             lines.append(("class:menu.border", "║\n"))
             lines.append(("class:menu.border", "╠══════════════════╬══════════════════════════════════════════════╣\n"))
 
             # Commands with horizontal separators
-            for idx, (cmd, desc) in enumerate(self.commands):
+            for idx, item in enumerate(self.items):
+                cmd = item.display
+                desc = item.display_meta or ""
+                
+                # Truncate if too long
+                cmd = cmd[:15]
+                desc = desc[:45]
+
                 is_selected = idx == self.selected_index
 
                 if is_selected:
@@ -445,16 +452,15 @@ class InteractiveSession:
                     lines.append(("class:menu.border", "║\n"))
 
                 # Add horizontal separator between rows (except last)
-                if idx < len(self.commands) - 1:
-                    if is_selected or (idx + 1 < len(self.commands) and self.selected_index == idx + 1):
-                        # Use selected style for separator near selection
+                if idx < len(self.items) - 1:
+                    if is_selected or (idx + 1 < len(self.items) and self.selected_index == idx + 1):
                         lines.append(("class:menu.selected", "╟──────────────────╫──────────────────────────────────────────────╢\n"))
                     else:
                         lines.append(("class:menu.separator", "╟──────────────────╫──────────────────────────────────────────────╢\n"))
 
             # Bottom border with instructions
             lines.append(("class:menu.border", "╚══════════════════╩══════════════════════════════════════════════╝\n"))
-            lines.append(("class:menu.instructions", "  ↑↓ navigate  │  ENTER select  │  ESC cancel  "))
+            lines.append(("class:menu.instructions", "  ↑↓ navigate  │  TAB/ENTER select  │  ESC cancel  "))
 
             return lines
 
@@ -628,7 +634,7 @@ class InteractiveSession:
             style=self.ui.theme_manager.get_current_style_for_prompt(),
             complete_while_typing=True,
             complete_in_thread=True,
-            complete_style=CompleteStyle.MULTI_COLUMN,  # Shows all options in columns
+            complete_style=None,  # Disable native menu to use custom CommandMenu
             enable_open_in_editor=False,
             mouse_support=True,  # Enable mouse for completion menu
         )
@@ -991,13 +997,21 @@ class InteractiveSession:
             """Handle enter - select from menu if visible, otherwise submit."""
             if self.command_menu.visible:
                 # Select command from menu
-                selected = self.command_menu.get_selected()
-                if selected:
-                    # Replace buffer content with selected command
-                    buffer.text = selected + " "
-                    buffer.cursor_position = len(buffer.text)
+                completion = self.command_menu.get_selected()
+                if completion:
+                    # Apply completion logic
+                    b = event.current_buffer
+                    if completion.start_position is not None:
+                        b.delete_before_cursor(-completion.start_position)
+                    
+                    b.insert_text(completion.text)
+                    
+                    # Add space if it's a full command (starts with /)
+                    if completion.text.startswith("/"):
+                         b.insert_text(" ")
+                         
                 self.command_menu.hide()
-                event.app.invalidate()  # Redraw after hiding menu
+                event.app.invalidate()
             else:
                 # Submit the input
                 event.app.exit(result=buffer.text)
@@ -1007,7 +1021,7 @@ class InteractiveSession:
             """Hide menu on escape."""
             if self.command_menu.visible:
                 self.command_menu.hide()
-                event.app.invalidate()  # Redraw after hiding menu
+                event.app.invalidate()
             else:
                 # Clear buffer if no menu
                 buffer.text = ""
@@ -1017,14 +1031,14 @@ class InteractiveSession:
             """Move up in menu if visible."""
             if self.command_menu.visible:
                 self.command_menu.move_up()
-                event.app.invalidate()  # Redraw to show updated selection
+                event.app.invalidate()
 
         @kb.add("down")
         def _(event):
             """Move down in menu if visible."""
             if self.command_menu.visible:
                 self.command_menu.move_down()
-                event.app.invalidate()  # Redraw to show updated selection
+                event.app.invalidate()
 
         @kb.add("c-c")
         def _(event):
@@ -1032,17 +1046,23 @@ class InteractiveSession:
 
         @kb.add("tab")
         def _(event):
-            """Handle tab - move down in menu if visible."""
+            """Handle tab - select from menu if visible."""
             if self.command_menu.visible:
-                self.command_menu.move_down()
-                event.app.invalidate()  # Redraw to show updated selection
+                # Same logic as Enter
+                completion = self.command_menu.get_selected()
+                if completion:
+                    b = event.current_buffer
+                    if completion.start_position is not None:
+                        b.delete_before_cursor(-completion.start_position)
+                    b.insert_text(completion.text)
+                    if completion.text.startswith("/"):
+                         b.insert_text(" ")
+                         
+                self.command_menu.hide()
+                event.app.invalidate()
             else:
-                # Normal tab behavior
-                b = event.app.current_buffer
-                if b.complete_state:
-                    b.complete_next()
-                else:
-                    b.start_completion(select_first=False)
+                # Normal tab behavior (indent)
+                event.current_buffer.insert_text("    ")
 
         @kb.add("s-tab")
         def _(event):
@@ -1069,36 +1089,39 @@ class InteractiveSession:
         def on_text_changed(_):
             """Show custom menu when user types '/'."""
             text = buffer.text
-            # Show custom menu for initial "/"
-            if text == "/":
-                # Collect all commands with descriptions
-                commands = []
-                for cmd in sorted(self.completer_dict.keys()):
-                    desc = self.slash_completer.descriptions.get(cmd, "")
-                    commands.append((cmd, desc))
-                self.command_menu.show(commands)
-                app.invalidate()  # Force redraw
-            # Show menu for command arguments if applicable
-            elif text.startswith("/") and text.endswith(" "):
-                parts = text.split()
-                if len(parts) >= 1:
-                    cmd = parts[0]
-                    # Check if this command has sub-completions
-                    if cmd in self.completer_dict and isinstance(self.completer_dict[cmd], dict):
-                        # Show submenu with options
-                        sub_commands = []
-                        for sub_cmd in sorted(self.completer_dict[cmd].keys()):
-                            sub_commands.append((sub_cmd, ""))
-                        self.command_menu.show(sub_commands)
-                        app.invalidate()  # Force redraw
-                    else:
-                        self.command_menu.hide()
-                        app.invalidate()  # Force redraw
-            else:
-                # Hide menu if not typing "/" or command with space
-                if self.command_menu.visible:  # Only invalidate if state changed
+            
+            # Only trigger for commands starting with /
+            if text.startswith("/"):
+                # Manually get completions from our completer
+                # We create a dummy document and event
+                from prompt_toolkit.document import Document
+                from prompt_toolkit.completion import CompleteEvent
+                
+                doc = Document(text, cursor_position=len(text))
+                event = CompleteEvent(text_inserted=True, completion_requested=True)
+                
+                completions = list(self.slash_completer.get_completions(doc, event))
+                
+                if completions:
+                    # Transform completions into (cmd, desc) tuples for menu
+                    menu_items = []
+                    for c in completions:
+                        # Extract description from display_meta
+                        # display_meta might be None
+                        desc = c.display_meta if c.display_meta else ""
+                        # Use completion.text or display for command
+                        cmd = c.display
+                        menu_items.append((cmd, desc))
+                    
+                    self.command_menu.show(menu_items)
+                    app.invalidate()
+                else:
                     self.command_menu.hide()
-                    app.invalidate()  # Force redraw
+                    app.invalidate()
+            else:
+                if self.command_menu.visible:
+                    self.command_menu.hide()
+                    app.invalidate()
 
         buffer.on_text_changed += on_text_changed
 
