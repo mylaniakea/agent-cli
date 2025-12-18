@@ -8,10 +8,15 @@ from importlib.metadata import version
 from typing import Any
 
 # Prompt Toolkit imports
-from prompt_toolkit import PromptSession
+from prompt_toolkit import Application, PromptSession
+from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.filters import Always
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.layout import Float, FloatContainer, HSplit, Layout, VSplit, Window
+from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.shortcuts import CompleteStyle
-from prompt_toolkit.styles import Style as PromptStyle
+from prompt_toolkit.styles import Style, merge_styles
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -363,11 +368,95 @@ class ThemeManager:
                 rich_styles["completion-menu.meta.completion.current"]
             )
 
-        return PromptStyle.from_dict(base_style)
+        return Style.from_dict(base_style)
 
 
 class InteractiveSession:
     """Manages the interactive prompt session."""
+
+    class CommandMenu:
+        """Custom pop-out menu for showing all commands at once."""
+
+        def __init__(self):
+            self.visible = False
+            self.selected_index = 0
+            self.commands = []  # List of (cmd, description) tuples
+
+        def show(self, commands):
+            """Show menu with given commands."""
+            self.commands = commands
+            self.visible = True
+            self.selected_index = 0
+
+        def hide(self):
+            """Hide the menu."""
+            self.visible = False
+            self.commands = []
+            self.selected_index = 0
+
+        def move_up(self):
+            """Move selection up."""
+            if self.commands:
+                self.selected_index = max(0, self.selected_index - 1)
+
+        def move_down(self):
+            """Move selection down."""
+            if self.commands:
+                self.selected_index = min(len(self.commands) - 1, self.selected_index + 1)
+
+        def get_selected(self):
+            """Get currently selected command."""
+            if self.commands and 0 <= self.selected_index < len(self.commands):
+                return self.commands[self.selected_index][0]
+            return None
+
+        def render(self):
+            """Render menu as formatted text in spreadsheet style."""
+            if not self.visible or not self.commands:
+                return []
+
+            lines = []
+            # Top border with title
+            lines.append(("class:menu.border", "╔══════════════════╦══════════════════════════════════════════════╗\n"))
+            lines.append(("class:menu.border", "║ "))
+            lines.append(("class:menu.title", "Command          "))
+            lines.append(("class:menu.border", "║ "))
+            lines.append(("class:menu.title", "Description                                  "))
+            lines.append(("class:menu.border", "║\n"))
+            lines.append(("class:menu.border", "╠══════════════════╬══════════════════════════════════════════════╣\n"))
+
+            # Commands with horizontal separators
+            for idx, (cmd, desc) in enumerate(self.commands):
+                is_selected = idx == self.selected_index
+
+                if is_selected:
+                    # Highlighted row with vertical separator
+                    lines.append(("class:menu.selected", "║ "))
+                    lines.append(("class:menu.selected", f"▶ {cmd:<15} "))
+                    lines.append(("class:menu.selected", "║ "))
+                    lines.append(("class:menu.selected.desc", f"{desc:<45}"))
+                    lines.append(("class:menu.selected", "║\n"))
+                else:
+                    # Normal row with vertical separator
+                    lines.append(("class:menu.border", "║ "))
+                    lines.append(("class:menu.normal", f"  {cmd:<15} "))
+                    lines.append(("class:menu.border", "║ "))
+                    lines.append(("class:menu.desc", f"{desc:<45}"))
+                    lines.append(("class:menu.border", "║\n"))
+
+                # Add horizontal separator between rows (except last)
+                if idx < len(self.commands) - 1:
+                    if is_selected or (idx + 1 < len(self.commands) and self.selected_index == idx + 1):
+                        # Use selected style for separator near selection
+                        lines.append(("class:menu.selected", "╟──────────────────╫──────────────────────────────────────────────╢\n"))
+                    else:
+                        lines.append(("class:menu.separator", "╟──────────────────╫──────────────────────────────────────────────╢\n"))
+
+            # Bottom border with instructions
+            lines.append(("class:menu.border", "╚══════════════════╩══════════════════════════════════════════════╝\n"))
+            lines.append(("class:menu.instructions", "  ↑↓ navigate  │  ENTER select  │  ESC cancel  "))
+
+            return lines
 
     class SlashCommandCompleter(Completer):
         """Custom completer for slash commands to handle / prefix correctly."""
@@ -529,11 +618,19 @@ class InteractiveSession:
             self.completer_dict, self.ui
         )
 
+        # Create custom command menu for pop-out display
+        self.command_menu = InteractiveSession.CommandMenu()
+
+        # Note: PromptSession will show completion menu automatically when configured
+        # The MULTI_COLUMN style should display completions in a table format
         self.session = PromptSession(
             completer=self.slash_completer,
             style=self.ui.theme_manager.get_current_style_for_prompt(),
             complete_while_typing=True,
-            complete_style=CompleteStyle.COLUMN,  # Vertical pop-out menu style
+            complete_in_thread=True,
+            complete_style=CompleteStyle.MULTI_COLUMN,  # Shows all options in columns
+            enable_open_in_editor=False,
+            mouse_support=True,  # Enable mouse for completion menu
         )
         self.provider = "Unknown"
         self.model = "Unknown"
@@ -697,15 +794,6 @@ class InteractiveSession:
 
     def prompt(self, default: str = "") -> str:
         """Get input from user with encapsulated style using custom container."""
-        from prompt_toolkit import Application
-        from prompt_toolkit.buffer import Buffer
-        from prompt_toolkit.key_binding import KeyBindings
-        from prompt_toolkit.layout import Layout
-        from prompt_toolkit.layout.containers import Float, FloatContainer, HSplit, VSplit, Window
-        from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
-        from prompt_toolkit.layout.menus import CompletionsMenu
-        from prompt_toolkit.styles import Style, merge_styles
-
         # Update style before prompt in case theme changed
         self.session.style = self.ui.theme_manager.get_current_style_for_prompt()
 
@@ -714,11 +802,9 @@ class InteractiveSession:
 
         # --- SIMPLE THEME (No Box) ---
         if theme_name == "simple":
-            # Use regular session prompt for simple theme
+            # Use regular session prompt for simple theme with completion menu
             def get_bottom_toolbar_simple():
                 return self._get_toolbar_tokens()
-
-            from prompt_toolkit.styles import Style, merge_styles
 
             simple_toolbar = Style.from_dict(
                 {
@@ -727,6 +813,14 @@ class InteractiveSession:
                     "toolbar.stats": "#888888",
                     "toolbar.timer": "ansiyellow",
                     "toolbar.meta": "italic #888888",
+                    # Completion menu styles
+                    "completion-menu": "bg:#1e1e1e #ffffff",
+                    "completion-menu.completion": "bg:#1e1e1e #ffffff",
+                    "completion-menu.completion.current": "bg:#4a9eff #000000 bold",
+                    "completion-menu.meta.completion": "#888888",
+                    "completion-menu.meta.completion.current": "#000000",
+                    "scrollbar.background": "bg:#444444",
+                    "scrollbar.button": "bg:#888888",
                 }
             )
             final_style = merge_styles([self.session.style, simple_toolbar])
@@ -739,6 +833,9 @@ class InteractiveSession:
                 bottom_toolbar=get_bottom_toolbar_simple,
                 style=final_style,
                 refresh_interval=1.0,
+                # Enable completion menu display
+                complete_in_thread=True,
+                complete_while_typing=True,
             )
 
         # --- BOXED THEME (Custom Container) ---
@@ -784,30 +881,34 @@ class InteractiveSession:
             complete_while_typing=True,
         )
 
-        # Add handler to auto-show completion menu for commands and arguments
-        def on_text_changed(_):
-            """Auto-show completion menu when user types commands."""
-            text = buffer.text
-            if not buffer.complete_state:
-                # Auto-show for initial "/"
-                if text == "/":
-                    buffer.start_completion(select_first=False)
-                # Auto-show for commands with arguments (e.g., "/model ", "/provider ")
-                elif text.startswith("/") and text.endswith(" "):
-                    parts = text.split()
-                    if len(parts) >= 1:
-                        cmd = parts[0]
-                        # Check if this command has sub-completions
-                        if cmd in self.completer_dict and isinstance(self.completer_dict[cmd], dict):
-                            buffer.start_completion(select_first=False)
+        # Get theme colors for menu
+        menu_bg = "#1e1e1e"  # Dark background
+        menu_text = rich_styles.get("prompt.text", "#ffffff")
+        menu_border = rich_styles.get("prompt.border", "#888888")
+        menu_highlight_bg = rich_styles.get("panel.border", "#4a9eff")  # Use theme accent
+        menu_highlight_text = "#000000"  # Black text on highlight
+        menu_desc = "#888888"  # Dimmed description
 
-        buffer.on_text_changed += on_text_changed
+        # Extract just color from rich style strings (handle "bold #color" format)
+        if " " in menu_text:
+            menu_text = menu_text.split()[-1]
+        if " " in menu_highlight_bg:
+            menu_highlight_bg = menu_highlight_bg.split()[-1]
 
-        # Create style
+        # Create style with theme-aware custom menu styling
         custom_style = Style.from_dict(
             {
                 "border": border_color,
                 "prompt": "bold",
+                # Custom command menu styles (spreadsheet table)
+                "menu.border": f"{menu_border}",  # Border lines
+                "menu.title": f"bold {menu_highlight_bg}",  # Header row
+                "menu.normal": f"{menu_text}",  # Normal command text
+                "menu.desc": f"{menu_desc}",  # Description text
+                "menu.selected": f"bg:{menu_highlight_bg} {menu_highlight_text} bold",  # Selected row
+                "menu.selected.desc": f"bg:{menu_highlight_bg} {menu_highlight_text}",  # Selected description
+                "menu.separator": f"{menu_border}",  # Row separators
+                "menu.instructions": f"{menu_desc}",  # Bottom instructions
             }
         )
         final_style = merge_styles([self.session.style, custom_style])
@@ -848,14 +949,32 @@ class InteractiveSession:
             ]
         )
 
-        # Wrap in FloatContainer to show completion menu
+        # Wrap in FloatContainer with custom command menu
+        # Create a window for the custom menu
+        def calculate_menu_height():
+            """Calculate height for spreadsheet menu with separators."""
+            if not self.command_menu.visible:
+                return 0
+            # Top border (1) + Header (2) + Commands + Separators + Bottom (1) + Instructions (1)
+            # Each command = 1 line, separator between = commands - 1
+            num_commands = len(self.command_menu.commands)
+            return 1 + 2 + num_commands + (num_commands - 1 if num_commands > 1 else 0) + 1 + 1
+
+        menu_window = Window(
+            content=FormattedTextControl(lambda: self.command_menu.render()),
+            width=70,  # Fixed width for spreadsheet
+            height=calculate_menu_height,
+        )
+
+        # FloatContainer with command menu that shows when visible
         float_container = FloatContainer(
             content=root_container,
             floats=[
                 Float(
-                    xcursor=True,
+                    xcursor=False,
                     ycursor=True,
-                    content=CompletionsMenu(max_height=10),
+                    content=menu_window,
+                    transparent=False,
                 )
             ],
         )
@@ -867,7 +986,43 @@ class InteractiveSession:
 
         @kb.add("enter")
         def _(event):
-            event.app.exit(result=buffer.text)
+            """Handle enter - select from menu if visible, otherwise submit."""
+            if self.command_menu.visible:
+                # Select command from menu
+                selected = self.command_menu.get_selected()
+                if selected:
+                    # Replace buffer content with selected command
+                    buffer.text = selected + " "
+                    buffer.cursor_position = len(buffer.text)
+                self.command_menu.hide()
+                event.app.invalidate()  # Redraw after hiding menu
+            else:
+                # Submit the input
+                event.app.exit(result=buffer.text)
+
+        @kb.add("escape")
+        def _(event):
+            """Hide menu on escape."""
+            if self.command_menu.visible:
+                self.command_menu.hide()
+                event.app.invalidate()  # Redraw after hiding menu
+            else:
+                # Clear buffer if no menu
+                buffer.text = ""
+
+        @kb.add("up")
+        def _(event):
+            """Move up in menu if visible."""
+            if self.command_menu.visible:
+                self.command_menu.move_up()
+                event.app.invalidate()  # Redraw to show updated selection
+
+        @kb.add("down")
+        def _(event):
+            """Move down in menu if visible."""
+            if self.command_menu.visible:
+                self.command_menu.move_down()
+                event.app.invalidate()  # Redraw to show updated selection
 
         @kb.add("c-c")
         def _(event):
@@ -875,27 +1030,75 @@ class InteractiveSession:
 
         @kb.add("tab")
         def _(event):
-            """Handle tab completion."""
-            b = event.app.current_buffer
-            if b.complete_state:
-                b.complete_next()
+            """Handle tab - move down in menu if visible."""
+            if self.command_menu.visible:
+                self.command_menu.move_down()
+                event.app.invalidate()  # Redraw to show updated selection
             else:
-                b.start_completion(select_first=False)
+                # Normal tab behavior
+                b = event.app.current_buffer
+                if b.complete_state:
+                    b.complete_next()
+                else:
+                    b.start_completion(select_first=False)
 
         @kb.add("s-tab")
         def _(event):
-            """Handle shift-tab for previous completion."""
-            b = event.app.current_buffer
-            if b.complete_state:
-                b.complete_previous()
+            """Handle shift-tab - move up in menu if visible."""
+            if self.command_menu.visible:
+                self.command_menu.move_up()
+                event.app.invalidate()  # Redraw to show updated selection
+            else:
+                # Normal shift-tab behavior
+                b = event.app.current_buffer
+                if b.complete_state:
+                    b.complete_previous()
 
-        # Create and run application
+        # Create and run application with mouse support for menu
         app = Application(
             layout=layout,
             key_bindings=kb,
             style=final_style,
             full_screen=False,
+            mouse_support=True,  # Enable mouse for menu interaction
         )
+
+        # Add handler to show custom command menu (after app creation so we can invalidate)
+        def on_text_changed(_):
+            """Show custom menu when user types '/'."""
+            text = buffer.text
+            # Show custom menu for initial "/"
+            if text == "/":
+                # Collect all commands with descriptions
+                commands = []
+                for cmd in sorted(self.completer_dict.keys()):
+                    desc = self.slash_completer.descriptions.get(cmd, "")
+                    commands.append((cmd, desc))
+                self.command_menu.show(commands)
+                app.invalidate()  # Force redraw
+            # Show menu for command arguments if applicable
+            elif text.startswith("/") and text.endswith(" "):
+                parts = text.split()
+                if len(parts) >= 1:
+                    cmd = parts[0]
+                    # Check if this command has sub-completions
+                    if cmd in self.completer_dict and isinstance(self.completer_dict[cmd], dict):
+                        # Show submenu with options
+                        sub_commands = []
+                        for sub_cmd in sorted(self.completer_dict[cmd].keys()):
+                            sub_commands.append((sub_cmd, ""))
+                        self.command_menu.show(sub_commands)
+                        app.invalidate()  # Force redraw
+                    else:
+                        self.command_menu.hide()
+                        app.invalidate()  # Force redraw
+            else:
+                # Hide menu if not typing "/" or command with space
+                if self.command_menu.visible:  # Only invalidate if state changed
+                    self.command_menu.hide()
+                    app.invalidate()  # Force redraw
+
+        buffer.on_text_changed += on_text_changed
 
         result = app.run()
         return result or ""

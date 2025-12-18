@@ -1,0 +1,8 @@
+#!/bin/bash
+# Convenience wrapper for agent-cli
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Run agent-cli from the virtual environment
+exec "$SCRIPT_DIR/.venv/bin/agent-cli" "$@"

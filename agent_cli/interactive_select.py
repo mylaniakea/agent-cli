@@ -165,10 +165,16 @@ class MultiSelect:
             style=style,
             full_screen=False,
             mouse_support=False,
+            input=None,  # Use default input (stdin)
+            output=None,  # Use default output (stdout)
         )
 
-        result = app.run()
-        return result if result is not None else []
+        try:
+            result = app.run()
+            return result if result is not None else []
+        except Exception:
+            # Terminal doesn't support interactive mode
+            return []
 
 
 class SingleSelect:
@@ -315,7 +321,13 @@ class SingleSelect:
             style=style,
             full_screen=False,
             mouse_support=False,
+            input=None,  # Use default input (stdin)
+            output=None,  # Use default output (stdout)
         )
 
-        result = app.run()
-        return result
+        try:
+            result = app.run()
+            return result
+        except Exception:
+            # Terminal doesn't support interactive mode
+            return None
