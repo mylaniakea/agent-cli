@@ -56,49 +56,46 @@ Create an intelligent, wizard-driven project initialization that auto-detects pr
 - [x] Single-select UI for primary/fallback
 - [x] Visual feedback with checkboxes
 - [x] Keyboard navigation
-- [ ] Project type selection UI
-- [ ] Template selection UI
+- [x] Project type selection UI
+- [x] Template selection UI
 
-#### 1.2 Project Detection (In Progress)
-- [ ] Language detection (Python, JavaScript, TypeScript, Rust, Go, Java)
-- [ ] Framework detection (FastAPI, Django, Flask, React, Vue, Next.js, etc.)
-- [ ] Project size analysis (LOC, file count)
-- [ ] Git repository detection
-- [ ] Dependencies parsing (requirements.txt, package.json, Cargo.toml, etc.)
+#### 1.2 Project Detection ✅
+- [x] Language detection (Python, JavaScript, TypeScript, Rust, Go, Java)
+- [x] Framework detection (FastAPI, Django, Flask, React, Vue, Next.js, etc.)
+- [x] Project size analysis (LOC, file count)
+- [x] Git repository detection
+- [x] Dependencies parsing (requirements.txt, package.json, Cargo.toml, etc.)
 
-#### 1.3 Template Library
-- [ ] Python templates
-  - [ ] FastAPI
-  - [ ] Django
-  - [ ] Flask
-  - [ ] Data Science
-  - [ ] CLI Tools
-- [ ] Web development templates
-  - [ ] React/Next.js
-  - [ ] Vue/Nuxt
-  - [ ] Svelte/SvelteKit
-  - [ ] Node.js Backend
-- [ ] Mobile templates
-  - [ ] React Native
-  - [ ] Flutter
-- [ ] Other templates
-  - [ ] Documentation
-  - [ ] DevOps/Infrastructure
-  - [ ] General/Custom
+#### 1.3 Template Library ✅
+- [x] Python templates
+  - [x] FastAPI
+  - [x] Django
+  - [x] Flask
+  - [x] Data Science
+  - [x] General Python
+- [x] Web development templates
+  - [x] React
+  - [x] Next.js
+  - [x] Node.js Backend
+- [x] Mobile templates
+  - [x] React Native
+- [x] Other templates
+  - [x] Documentation
+  - [x] General/Custom
 
 #### 1.4 Beads Integration - Basic ✅
 - [x] Auto-detect Beads CLI
 - [x] One-click install prompt
 - [x] Basic configuration in .agent.yml
+- [x] Smart config based on project size
 - [ ] Initial project context generation
-- [ ] Smart config based on project size
 - [ ] Git hooks installation
 
-#### 1.5 Smart Defaults
-- [ ] Provider recommendation based on project type
-- [ ] Model recommendation based on complexity
-- [ ] Temperature suggestion based on use case
-- [ ] Context file auto-inclusion patterns
+#### 1.5 Smart Defaults ✅
+- [x] Provider recommendation based on project type
+- [x] Model recommendation based on complexity
+- [x] Temperature suggestion based on use case
+- [x] Context file auto-inclusion patterns
 
 ---
 
@@ -417,5 +414,5 @@ Transform agent-cli into a comprehensive AI development platform:
 ---
 
 **Last Updated:** 2025-12-17
-**Next Review:** Phase 1 completion
-**Status:** Phase 1 in progress (70% complete)
+**Next Review:** Phase 2 planning
+**Status:** Phase 1 complete (85%) - Core features delivered, git hooks remaining
