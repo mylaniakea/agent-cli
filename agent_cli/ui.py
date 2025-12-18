@@ -1098,7 +1098,9 @@ class InteractiveSession:
                 from prompt_toolkit.completion import CompleteEvent
                 
                 doc = Document(text, cursor_position=len(text))
-                event = CompleteEvent(text_inserted=True, completion_requested=True)
+                # Fix: CompleteEvent assertion fails if both are True.
+                # Since we are in on_text_changed, text was inserted.
+                event = CompleteEvent(text_inserted=True, completion_requested=False)
                 
                 completions = list(self.slash_completer.get_completions(doc, event))
                 
