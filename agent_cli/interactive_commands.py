@@ -1092,7 +1092,7 @@ def handle_init(command: str, **kwargs) -> bool:
 
         ui.console.print("[bold]Select your PRIMARY provider:[/bold]")
         selector = SingleSelect(provider_options)
-        selected_provider = selector.run()
+        selected_provider = selector.show()
 
         if not selected_provider:
             ui.console.print("[dim]Cancelled[/dim]")
@@ -1125,7 +1125,7 @@ def handle_init(command: str, **kwargs) -> bool:
 
         ui.console.print("\n[bold]Select a project template:[/bold]")
         selector = SingleSelect(template_options)
-        selected_template_id = selector.run()
+        selected_template_id = selector.show()
 
         if not selected_template_id:
             ui.console.print("[dim]Using default template[/dim]\n")
@@ -1142,7 +1142,7 @@ def handle_init(command: str, **kwargs) -> bool:
              "description": "Structured, machine-readable format"},
         ]
         selector = SingleSelect(format_options)
-        selected_format = selector.run()
+        selected_format = selector.show()
 
         if selected_format:
             format_type = selected_format
