@@ -1,14 +1,17 @@
-"""Beads: Conversation summarization for extended context.
+"""Beads: Dual-purpose system for conversation and personality management.
 
 Beads automatically summarizes older parts of conversations to fit within
 context windows while preserving recent messages for coherence.
+
+Additionally, beads compose personality traits into system prompts, allowing
+users to build complex AI personalities from simple, reusable trait modules.
 """
 
 from typing import Optional
 
 
 class BeadsManager:
-    """Manage conversation beads (summaries)."""
+    """Unified bead management for conversations AND personalities."""
 
     def __init__(
         self,
@@ -23,10 +26,15 @@ class BeadsManager:
             max_messages: Maximum messages to keep in full form
             summary_threshold: Trigger summary when messages exceed this
         """
+        # Conversation bead settings
         self.enabled = enabled
         self.max_messages = max_messages
         self.summary_threshold = summary_threshold
         self.summaries: list[str] = []
+
+        # Personality bead support (lazy loaded)
+        self._bead_library = None
+        self._composer = None
 
     def should_summarize(self, messages: list[dict]) -> bool:
         """Check if conversation should be summarized.
@@ -138,3 +146,100 @@ SUMMARY:"""
             List of summary strings
         """
         return self.summaries.copy()
+
+    # ============================================================
+    # Personality Bead Methods (NEW in v2.0.0)
+    # ============================================================
+
+    @property
+    def bead_library(self):
+        """Lazy-load the personality bead library.
+
+        Returns:
+            BeadLibrary instance
+        """
+        if self._bead_library is None:
+            from agent_cli.personality_beads import BeadLibrary
+
+            self._bead_library = BeadLibrary()
+        return self._bead_library
+
+    @property
+    def composer(self):
+        """Lazy-load the personality composer.
+
+        Returns:
+            PersonalityComposer instance
+        """
+        if self._composer is None:
+            from agent_cli.personality_beads import PersonalityComposer
+
+            self._composer = PersonalityComposer()
+        return self._composer
+
+    def compose_personality(self, bead_ids: list[str]) -> str:
+        """Compose personality beads into system prompt.
+
+        Args:
+            bead_ids: List of bead IDs to compose
+
+        Returns:
+            Composed system prompt string
+        """
+        beads = []
+        missing = []
+
+        for bead_id in bead_ids:
+            bead = self.bead_library.get_bead(bead_id)
+            if bead:
+                beads.append(bead)
+            else:
+                missing.append(bead_id)
+
+        if missing:
+            print(f"Warning: Beads not found: {', '.join(missing)}")
+
+        if not beads:
+            return ""
+
+        return self.composer.compose(beads)
+
+    def list_personality_beads(self, bead_type=None):
+        """List available personality beads.
+
+        Args:
+            bead_type: Optional BeadType to filter by
+
+        Returns:
+            List of PersonalityBead objects
+        """
+        return self.bead_library.list_beads(bead_type)
+
+    def search_personality_beads(self, query: str):
+        """Search personality beads.
+
+        Args:
+            query: Search string
+
+        Returns:
+            List of matching PersonalityBead objects
+        """
+        return self.bead_library.search_beads(query)
+
+    def get_personality_bead(self, bead_id: str):
+        """Get a specific personality bead by ID.
+
+        Args:
+            bead_id: The bead identifier
+
+        Returns:
+            PersonalityBead if found, None otherwise
+        """
+        return self.bead_library.get_bead(bead_id)
+
+    def reload_personality_beads(self):
+        """Reload personality beads from disk."""
+        if self._bead_library:
+            self._bead_library.reload()
+        if self._composer:
+            self._composer.clear_cache()
