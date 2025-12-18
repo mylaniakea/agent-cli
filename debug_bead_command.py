@@ -3,6 +3,7 @@
 
 import sys
 
+
 def debug_bead_list():
     """Simulate the /bead list command with debug output."""
     print("=" * 70)
@@ -26,7 +27,6 @@ def debug_bead_list():
         return
 
     try:
-        from agent_cli.personality_beads import BeadType
         print("   ✓ BeadType imported")
     except Exception as e:
         print(f"   ✗ BeadType import failed: {e}")

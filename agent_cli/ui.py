@@ -11,9 +11,9 @@ from typing import Any
 from prompt_toolkit import Application, PromptSession
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.completion import Completer, Completion
-from prompt_toolkit.filters import Always
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout import Float, FloatContainer, HSplit, Layout, VSplit, Window
+from prompt_toolkit.layout import ConditionalContainer, Float, FloatContainer, HSplit, Layout, VSplit, Window
+from prompt_toolkit.filters import Condition
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.shortcuts import CompleteStyle
 from prompt_toolkit.styles import Style, merge_styles
@@ -330,7 +330,7 @@ class ThemeManager:
         """Get list of available themes."""
         return list(PRESET_THEMES.keys())
 
-    def get_current_style_for_prompt(self) -> PromptStyle:
+    def get_current_style_for_prompt(self) -> Style:
         """Get a prompt_toolkit style object matching the current theme."""
         # Map Rich styles to prompt_toolkit styles
         rich_styles = self.current_theme_data
@@ -971,10 +971,12 @@ class InteractiveSession:
             content=root_container,
             floats=[
                 Float(
-                    xcursor=False,
+                    xcursor=True,
                     ycursor=True,
-                    content=menu_window,
-                    transparent=False,
+                    content=ConditionalContainer(
+                        content=menu_window,
+                        filter=Condition(lambda: self.command_menu.visible),
+                    ),
                 )
             ],
         )

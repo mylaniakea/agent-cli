@@ -1,6 +1,5 @@
 """Main CLI entry point - refactored for better encapsulation."""
 
-import re
 import sys
 from importlib.metadata import version
 from pathlib import Path
@@ -9,12 +8,10 @@ from typing import Optional
 import click
 
 # Import interactive commands to register them
-import agent_cli.interactive_commands  # noqa: F401
+import agent_cli.commands  # noqa: F401
 from agent_cli.agents import AgentFactory
 from agent_cli.command_registry import handle_command
-from agent_cli.config import Config
-from agent_cli.history_manager import add_to_history
-from agent_cli.interactive_commands import (
+from agent_cli.commands.constants import (
     CONTEXT_KEY_AGENT,
     CONTEXT_KEY_CONFIG,
     CONTEXT_KEY_HISTORY,
@@ -23,6 +20,8 @@ from agent_cli.interactive_commands import (
     CONTEXT_KEY_STREAM,
     CONTEXT_KEY_SYSTEM_PROMPT,
 )
+from agent_cli.config import Config
+from agent_cli.history_manager import add_to_history
 from agent_cli.model_factory import ModelFactory
 from agent_cli.session_manager import (
     get_session_state,
@@ -30,6 +29,7 @@ from agent_cli.session_manager import (
     update_session_state,
 )
 from agent_cli.ui import UI
+from agent_cli.utils import process_file_references
 
 # Constants
 DUMMY_MODEL_NAME = "dummy"
@@ -39,42 +39,6 @@ EXIT_COMMANDS = ["exit", "quit"]
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
-
-
-def read_file_content(filepath: str) -> Optional[str]:
-    """Read file content, handling both absolute and relative paths."""
-    try:
-        path = Path(filepath)
-        if not path.is_absolute():
-            path = Path.cwd() / path
-        if not path.exists() or not path.is_file():
-            return None
-        return path.read_text(encoding="utf-8")
-    except Exception:
-        return None
-
-
-def process_file_references(text: str, ui_instance: UI) -> tuple[str, list[str]]:
-    """Process @filename references in text and return enhanced prompt with file contents."""
-    pattern = r'@("([^"]+)"|(\S+))'
-    file_contents = []
-    processed_text = text
-
-    for match in re.finditer(pattern, text):
-        filename = match.group(2) or match.group(3)
-        content = read_file_content(filename)
-        if content:
-            file_contents.append(f"File: {filename}\n{content}")
-            processed_text = processed_text.replace(match.group(0), f"[File: {filename}]")
-        else:
-            ui_instance.print_warning(f"Could not read file '{filename}'")
-
-    if file_contents:
-        enhanced_prompt = "\n\n".join(file_contents) + "\n\nUser request: " + processed_text
-    else:
-        enhanced_prompt = processed_text
-
-    return enhanced_prompt, file_contents
 
 
 def build_command_context(
@@ -183,7 +147,6 @@ def setup_initial_provider_and_model(
     session_state: dict,
 ) -> tuple[str, str]:
     """Setup initial provider and model from CLI args, onboarding, or session state."""
-    from pathlib import Path
 
     from dotenv import load_dotenv
     from rich.console import Console

@@ -8,9 +8,10 @@ def test_imports():
     """Test that all required imports work."""
     print("Testing imports...")
     try:
-        from agent_cli.ui import InteractiveSession, UI
         from prompt_toolkit.layout.containers import Float, FloatContainer
         from prompt_toolkit.layout.menus import CompletionsMenu
+
+        from agent_cli.ui import UI, InteractiveSession
         print("✓ All imports successful")
         return True
     except ImportError as e:
@@ -22,7 +23,7 @@ def test_ui_initialization():
     """Test that UI components initialize properly."""
     print("\nTesting UI initialization...")
     try:
-        from agent_cli.ui import InteractiveSession, UI
+        from agent_cli.ui import UI, InteractiveSession
 
         ui = UI()
         session = InteractiveSession(ui)
@@ -45,7 +46,7 @@ def test_completer_structure():
     """Test that completer has proper structure."""
     print("\nTesting completer structure...")
     try:
-        from agent_cli.ui import InteractiveSession, UI
+        from agent_cli.ui import UI, InteractiveSession
 
         ui = UI()
         session = InteractiveSession(ui)
@@ -70,6 +71,7 @@ def test_ollama_timer():
     print("\nTesting Ollama timer code...")
     try:
         import inspect
+
         from agent_cli.ui import InteractiveSession
 
         # Check that _get_toolbar_tokens has timer code
@@ -95,6 +97,7 @@ def test_completion_menu_support():
     print("\nTesting completion menu support...")
     try:
         import inspect
+
         from agent_cli.ui import InteractiveSession
 
         source = inspect.getsource(InteractiveSession.prompt)
@@ -114,6 +117,7 @@ def test_model_name_display():
     print("\nTesting model name display...")
     try:
         import inspect
+
         from agent_cli.ui import InteractiveSession
 
         source = inspect.getsource(InteractiveSession.prompt)

@@ -20,8 +20,8 @@ except Exception as e:
 print("\n2. Testing completion menu has new commands...")
 try:
     # Import commands to register them
-    import agent_cli.interactive_commands  # noqa: F401
-    from agent_cli.ui import InteractiveSession, UI
+    import agent_cli.commands  # noqa: F401
+    from agent_cli.ui import UI, InteractiveSession
 
     ui = UI()
     session = InteractiveSession(ui)
@@ -34,7 +34,7 @@ try:
 
     if not missing:
         print(f"   ✓ All new commands present ({len(session.completer_dict)} total)")
-        print(f"   ✓ Commands include: /init, /context, /hooks")
+        print("   ✓ Commands include: /init, /context, /hooks")
     else:
         print(f"   ✗ Missing commands: {missing}")
         print(f"   Available: {list(session.completer_dict.keys())}")
@@ -60,7 +60,7 @@ try:
         if ".venv" in location:
             print("   ✓ Using virtual environment version")
         else:
-            print(f"   ⚠ Using system version (not venv)")
+            print("   ⚠ Using system version (not venv)")
     else:
         print("   ✗ agent-cli not found in PATH")
 except Exception as e:

@@ -197,6 +197,39 @@ Show MCP server management information.
 /mcp
 ```
 
+### `/bead` - Manage Personality Beads
+
+Manage personality beads for the current session.
+
+**Usage:**
+```bash
+/bead list              # List available beads
+/bead add <name>        # Add a bead to the active chain
+/bead remove <name>     # Remove a bead from the chain
+/bead clear             # Clear all active beads
+/bead show              # Show current active beads and composed prompt
+```
+
+**Examples:**
+```bash
+/bead add helpful
+/bead add python-expert
+/bead add concise
+```
+
+### `/context` - Manage Project Context
+
+Manage project context files and usage.
+
+**Usage:**
+```bash
+/context [status]       # Show context summary (default)
+/context usage          # Show context window usage and token count
+/context update         # Update context from git history
+/context view           # View all context content
+/context add <note>     # Add a note to context
+```
+
 ## File References
 
 Include file contents in prompts using `@filename` syntax:

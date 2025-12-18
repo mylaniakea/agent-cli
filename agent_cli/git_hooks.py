@@ -1,6 +1,5 @@
 """Git hooks for automatic context updates."""
 
-import os
 import subprocess
 from pathlib import Path
 from typing import List, Optional

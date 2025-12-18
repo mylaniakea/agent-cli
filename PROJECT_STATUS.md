@@ -78,31 +78,20 @@
 - Session persistence across restarts
 - Error handling and recovery
 
-## Recent Changes (Last 24 Hours)
+## Recent Updates (December 18, 2025)
 
-### Commits
-- `c18afc8` - Linting cleanup, added dev workflow (TODAY - autocomplete broken after this)
-- `fbd71d4` - Format code with ruff
-- `eb320f2` - Add missing _get_status_subtitle method
-- `b52df55` - Release v1.1.0 (YESTERDAY - was working)
+- **Refactoring:** Modularized `interactive_commands.py` into `agent_cli/commands/` package.
+- **New Feature:** Implemented `/bead` command for managing personality beads.
+- **UI Improvements:**
+  - Fixed Command Menu visibility issue.
+  - Implemented visual "Bead Pills" in the prompt.
+  - Resolved conflict in `/context` command (merged status and usage).
+- **Documentation:** Updated architecture assessment and command reference.
 
-### Files Modified Today
-- 25 files changed (all agents, ui, config, etc.)
-- Major changes: type hints modernized, exception chaining added
-- UI.py: Toolbar simplified to show emoji only
+## Current Focus
 
-## Next Steps (For Future Work)
-
-1. **FIRST PRIORITY**: Fix autocomplete
-   - Bisect commits to find where it broke
-   - Compare ui.py between b52df55 (working) and c18afc8 (broken)
-   - Look at PromptSession initialization differences
-
-2. Test in isolation before claiming things work
-
-3. Make minimal, targeted changes
-
-4. Always verify interactive features actually work
+- Fine-tuning Beads integration.
+- Testing robustness of new modular command structure.
 
 ## Lessons Learned
 

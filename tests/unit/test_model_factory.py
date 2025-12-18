@@ -93,4 +93,7 @@ class TestModelFactory:
     def test_validate_model_not_exists(self):
         """Test validating a model that doesn't exist."""
         ModelFactory._config_cache = {}
-        assert ModelFactory.validate_model("ollama", "nonexistent") is False
+        # Ollama models are dynamic, so they always return True
+        assert ModelFactory.validate_model("ollama", "nonexistent") is True
+        # Other providers should return False
+        assert ModelFactory.validate_model("openai", "nonexistent") is False

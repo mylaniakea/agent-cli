@@ -1,9 +1,8 @@
 """Project detection and analysis for intelligent initialization."""
 
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
 
 @dataclass

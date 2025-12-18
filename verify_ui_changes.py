@@ -2,9 +2,10 @@
 """Verify UI changes are loaded correctly."""
 
 import sys
+
 sys.path.insert(0, ".")
 
-from agent_cli.ui import InteractiveSession, UI, PRESET_THEMES
+from agent_cli.ui import PRESET_THEMES, UI, InteractiveSession
 
 print("=" * 60)
 print("UI CHANGES VERIFICATION")
@@ -35,6 +36,7 @@ for theme_name in sample_themes:
 # Check 3: Timer code
 print("\n3. Checking timer implementation...")
 import inspect
+
 source = inspect.getsource(session._get_toolbar_tokens)
 has_timer = "Ollama keep-alive timer" in source and "⏱" in source
 print(f"   {'✅' if has_timer else '❌'} Timer code with ⏱ emoji found")
