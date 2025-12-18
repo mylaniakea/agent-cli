@@ -427,11 +427,21 @@ class InteractiveSession:
 
             # Commands with horizontal separators
             for idx, item in enumerate(self.items):
-                cmd = item.display
-                desc = item.display_meta or ""
+                # Ensure display is a string (handle FormattedText)
+                from prompt_toolkit.formatted_text import to_plain_text
+                if isinstance(item.display, list): # FormattedText is a list
+                     cmd = to_plain_text(item.display)
+                else:
+                     cmd = str(item.display)
+                
+                if isinstance(item.display_meta, list):
+                     desc = to_plain_text(item.display_meta)
+                else:
+                     desc = str(item.display_meta) if item.display_meta else ""
                 
                 # Truncate if too long
                 cmd = cmd[:15]
+                desc = desc[:45]
                 desc = desc[:45]
 
                 is_selected = idx == self.selected_index
@@ -1085,41 +1095,40 @@ class InteractiveSession:
             mouse_support=True,  # Enable mouse for menu interaction
         )
 
-        # Add handler to show custom command menu (after app creation so we can invalidate)
-        def on_text_changed(_):
-            """Show custom menu when user types '/'."""
-            text = buffer.text
-            
-            # Only trigger for commands starting with /
-            if text.startswith("/"):
-                # Manually get completions from our completer
-                # We create a dummy document and event
-                from prompt_toolkit.document import Document
-                from prompt_toolkit.completion import CompleteEvent
-                
-                doc = Document(text, cursor_position=len(text))
-                # Fix: CompleteEvent assertion fails if both are True.
-                # Since we are in on_text_changed, text was inserted.
-                event = CompleteEvent(text_inserted=True, completion_requested=False)
-                
-                completions = list(self.slash_completer.get_completions(doc, event))
-                
-                if completions:
-                    # Pass full completion objects to menu directly
-                    self.command_menu.show(completions)
-                    app.invalidate()
-                else:
-                    self.command_menu.hide()
-                    app.invalidate()
-            else:
-                if self.command_menu.visible:
-                    self.command_menu.hide()
-                    app.invalidate()
-
-        buffer.on_text_changed += on_text_changed
+        buffer.on_text_changed += lambda b: self._on_text_changed(b, app)
 
         result = app.run()
         return result or ""
+
+    def _on_text_changed(self, buffer, app):
+        """Show custom menu when user types '/'."""
+        text = buffer.text
+        
+        # Only trigger for commands starting with /
+        if text.startswith("/"):
+            # Manually get completions from our completer
+            # We create a dummy document and event
+            from prompt_toolkit.document import Document
+            from prompt_toolkit.completion import CompleteEvent
+            
+            doc = Document(text, cursor_position=len(text))
+            # Fix: CompleteEvent assertion fails if both are True.
+            # Since we are in on_text_changed, text was inserted.
+            event = CompleteEvent(text_inserted=True, completion_requested=False)
+            
+            completions = list(self.slash_completer.get_completions(doc, event))
+            
+            if completions:
+                # Pass full completion objects to menu directly
+                self.command_menu.show(completions)
+                app.invalidate()
+            else:
+                self.command_menu.hide()
+                app.invalidate()
+        else:
+            if self.command_menu.visible:
+                self.command_menu.hide()
+                app.invalidate()
 
 
 class UI:
