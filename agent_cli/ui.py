@@ -4,6 +4,7 @@ Provides styled output, spinners, themes, and interactive session management.
 """
 
 import sys
+from importlib.metadata import version
 from typing import Any
 
 # Prompt Toolkit imports
@@ -914,6 +915,12 @@ class UI:
 
     def print_welcome(self):
         """Print the welcome banner."""
+        # Get version from package metadata
+        try:
+            pkg_version = version("agent-cli")
+        except Exception:
+            pkg_version = "unknown"
+
         title = r"""
     _                     _      ____ _     ___
    / \   __ _  ___ _ __ | |_   / ___| |   |_ _|
@@ -924,7 +931,7 @@ class UI:
         """
         self.console.print(
             Panel(
-                f"[bold blue]{title}[/bold blue]\n[dim]Interactive AI Agent CLI[/dim]",
+                f"[bold blue]{title}[/bold blue]\n[dim]Interactive AI Agent CLI v{pkg_version}[/dim]",
                 border_style="panel.border",
                 expand=False,
             )
