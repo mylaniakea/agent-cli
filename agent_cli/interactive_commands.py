@@ -893,33 +893,8 @@ def handle_bead(command: str, context: dict) -> bool:
                 )
                 return True
         else:
-            # Show interactive menu to select type (or all)
-            from agent_cli.interactive_select import SingleSelect
-
-            type_options = [
-                {"key": "all", "label": "📦 All Beads", "icon": ""},
-                {"key": "base", "label": "Core Personality", "icon": "🎯"},
-                {"key": "professional", "label": "Communication Style", "icon": "💼"},
-                {"key": "domain", "label": "Expertise Areas", "icon": "🔧"},
-                {"key": "modifier", "label": "Response Adjustments", "icon": "⚙️"},
-                {"key": "behavior", "label": "Behavioral Patterns", "icon": "🎭"},
-            ]
-
-            ui.console.print("\n[bold cyan]Select bead category:[/bold cyan]")
-            selector = SingleSelect(
-                type_options,
-                title="",
-                instruction="Use ↑/↓ to navigate, ENTER to select, ESC to cancel"
-            )
-            selected = selector.show()
-
-            if not selected:
-                ui.print_info("Cancelled")
-                return True
-
-            if selected != "all":
-                from agent_cli.personality_beads import BeadType
-                bead_type = BeadType(selected)
+            # No type specified - show all beads
+            bead_type = None
 
         # Get beads
         beads = manager.bead_library.list_beads(bead_type)
@@ -945,47 +920,12 @@ def handle_bead(command: str, context: dict) -> bool:
         ui.print_table(title, ["ID", "Name", "Type", "Tags", "Description"], rows)
 
     elif action == "show":
-        bead_id = None
-        if len(parts) >= 3:
-            bead_id = parts[2]
-        else:
-            # Show interactive menu to select bead
-            from agent_cli.interactive_select import SingleSelect
+        if len(parts) < 3:
+            ui.print_info("Usage: /bead show <bead-id>")
+            ui.print_info("\nTip: Use '/bead list' to see all available bead IDs")
+            return True
 
-            all_beads = manager.bead_library.list_beads()
-            if not all_beads:
-                ui.print_info("No beads available.")
-                return True
-
-            bead_options = []
-            for bead in all_beads:
-                # Get type icon
-                type_icons = {
-                    "base": "🎯",
-                    "professional": "💼",
-                    "domain": "🔧",
-                    "modifier": "⚙️",
-                    "behavior": "🎭",
-                }
-                icon = type_icons.get(bead.type.value, "📦")
-
-                bead_options.append({
-                    "key": bead.id,
-                    "label": f"{bead.name}",
-                    "icon": icon,
-                })
-
-            ui.console.print("\n[bold cyan]Select a bead to view:[/bold cyan]")
-            selector = SingleSelect(
-                bead_options,
-                title="",
-                instruction="Use ↑/↓ to navigate, ENTER to select, ESC to cancel"
-            )
-            bead_id = selector.show()
-
-            if not bead_id:
-                ui.print_info("Cancelled")
-                return True
+        bead_id = parts[2]
 
         bead = manager.bead_library.get_bead(bead_id)
 

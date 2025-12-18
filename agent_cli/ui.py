@@ -388,11 +388,12 @@ class InteractiveSession:
                 "/mcp": "Manage MCP servers",
                 "/set": "Set configuration value",
                 "/theme": "Change UI theme",
-                "/agent": "Manage agents",
+                "/agent": "Manage specialized agents (personas)",
+                "/bead": "Manage personality beads",
                 "/keepalive": "Set Ollama keep-alive",
                 "/reasoning": "Toggle reasoning display",
                 "/compress": "Compress history",
-                "/beads": "Beads CLI integration",
+                "/beads": "Beads CLI integration (external tool)",
                 "/export": "Export conversation",
                 "/system": "Set system prompt",
                 "/project": "Project configuration",
@@ -408,6 +409,9 @@ class InteractiveSession:
                 # Case 1: Typing the command itself (e.g. "/mod")
                 if len(parts) <= 1 and (not text.endswith(" ")):
                     current = parts[0] if parts else "/"
+
+                    # Show ALL commands when user types just "/"
+                    # This creates a full popup menu of all available commands
                     for cmd in sorted(self.commands.keys()):
                         if cmd.startswith(current):
                             description = self.descriptions.get(cmd, "")
@@ -529,7 +533,7 @@ class InteractiveSession:
             completer=self.slash_completer,
             style=self.ui.theme_manager.get_current_style_for_prompt(),
             complete_while_typing=True,
-            complete_style=CompleteStyle.MULTI_COLUMN,
+            complete_style=CompleteStyle.POPUP_MENU,  # Pop-out menu style
         )
         self.provider = "Unknown"
         self.model = "Unknown"
