@@ -963,7 +963,7 @@ class InteractiveSession:
                 return 0
             # Top border (1) + Header (2) + Commands + Separators + Bottom (1) + Instructions (1)
             # Each command = 1 line, separator between = commands - 1
-            num_commands = len(self.command_menu.commands)
+            num_commands = len(self.command_menu.items)
             return 1 + 2 + num_commands + (num_commands - 1 if num_commands > 1 else 0) + 1 + 1
 
         menu_window = Window(
