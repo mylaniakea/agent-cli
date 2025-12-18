@@ -491,6 +491,7 @@ def handle_agent(command: str, context: dict) -> bool:
     elif action == "create":
         if len(parts) < 3:
             ui.print_info("Usage: /agent create <name> <model> [--beads bead1,bead2,...]")
+            ui.print_info("Or simply: /agent create <name> <model> (then select beads interactively)")
             return True
 
         # Parse command for --beads flag
@@ -498,7 +499,7 @@ def handle_agent(command: str, context: dict) -> bool:
         beads_flag_idx = full_args.find("--beads")
 
         if beads_flag_idx != -1:
-            # Extract beads
+            # Extract beads from command line
             before_beads = full_args[:beads_flag_idx].strip()
             after_beads = full_args[beads_flag_idx + 7:].strip()  # 7 = len("--beads")
 
@@ -533,7 +534,7 @@ def handle_agent(command: str, context: dict) -> bool:
             ui.print_info(system_prompt[:200] + "..." if len(system_prompt) > 200 else system_prompt)
 
         else:
-            # Traditional manual prompt entry
+            # Interactive bead selection or manual prompt entry
             args = full_args.split(None, 1)
             name = args[0] if args else ""
             model = args[1] if len(args) > 1 else context.get(CONTEXT_KEY_MODEL)
@@ -542,30 +543,137 @@ def handle_agent(command: str, context: dict) -> bool:
                 ui.print_error("Usage: /agent create <name> <model>")
                 return True
 
-            ui.print_info(f"Creating agent '{name}' using model '{model}'.")
-            ui.print_info("Enter the System Prompt for this agent (press Enter twice to finish):")
+            # Offer choice: beads or manual
+            from agent_cli.interactive_select import SingleSelect
 
-            # Simple multi-line input simulation
-            lines = []
-            while True:
-                line = ui.interactive_session.session.prompt([("class:prompt", "> ")])
-                if not line:
-                    break
-                lines.append(line)
+            choice_options = [
+                {"key": "beads", "label": "🎨 Compose from Personality Beads", "icon": ""},
+                {"key": "manual", "label": "✍️  Enter System Prompt Manually", "icon": ""},
+            ]
 
-            system_prompt = "\n".join(lines)
-            config.add_agent(name, system_prompt, model)
-            ui.print_success(f"Agent '{name}' created!")
+            ui.console.print(f"\n[bold cyan]Creating agent '{name}':[/bold cyan]")
+            selector = SingleSelect(
+                choice_options,
+                title="",
+                instruction="Use ↑/↓ to navigate, ENTER to select"
+            )
+            choice = selector.show()
+
+            if not choice:
+                ui.print_info("Cancelled")
+                return True
+
+            if choice == "beads":
+                # Show multi-select menu for beads
+                from agent_cli.beads import BeadsManager
+                from agent_cli.interactive_select import MultiSelect
+
+                manager = BeadsManager()
+                all_beads = manager.bead_library.list_beads()
+
+                if not all_beads:
+                    ui.print_error("No beads available in library.")
+                    return True
+
+                # Build bead options
+                bead_options = []
+                for bead in all_beads:
+                    type_icons = {
+                        "base": "🎯",
+                        "professional": "💼",
+                        "domain": "🔧",
+                        "modifier": "⚙️",
+                        "behavior": "🎭",
+                    }
+                    icon = type_icons.get(bead.type.value, "📦")
+
+                    bead_options.append({
+                        "key": bead.id,
+                        "label": f"{bead.name} ({bead.type.value})",
+                        "icon": icon,
+                    })
+
+                ui.console.print("\n[bold cyan]Select personality beads:[/bold cyan]")
+                multi_selector = MultiSelect(
+                    bead_options,
+                    title="",
+                    instruction="Use ↑/↓ to navigate, SPACE to select, ENTER when done"
+                )
+                bead_ids = multi_selector.show()
+
+                if not bead_ids:
+                    ui.print_info("No beads selected. Agent not created.")
+                    return True
+
+                # Compose personality
+                system_prompt = manager.compose_personality(bead_ids)
+
+                # Create agent
+                config.add_agent(name, system_prompt, model, beads=bead_ids)
+                ui.print_success(f"Agent '{name}' created with {len(bead_ids)} beads: {', '.join(bead_ids)}")
+
+                # Show preview
+                ui.print_info("\nComposed personality (first 200 chars):")
+                ui.print_info(system_prompt[:200] + "..." if len(system_prompt) > 200 else system_prompt)
+
+            else:
+                # Manual prompt entry
+                ui.print_info(f"Creating agent '{name}' using model '{model}'.")
+                ui.print_info("Enter the System Prompt for this agent (press Enter twice to finish):")
+
+                # Simple multi-line input simulation
+                lines = []
+                while True:
+                    line = ui.interactive_session.session.prompt([("class:prompt", "> ")])
+                    if not line:
+                        break
+                    lines.append(line)
+
+                system_prompt = "\n".join(lines)
+                config.add_agent(name, system_prompt, model)
+                ui.print_success(f"Agent '{name}' created!")
 
     elif action == "use":
-        if len(parts) < 3:
-            ui.print_info("Usage: /agent use <name>")
-            # Also support resetting to default
-            if ui.interactive_session and not parts[2:]:
-                ui.print_info("To reset to default (no agent), type: /agent use default")
-            return True
+        name = None
+        if len(parts) >= 3:
+            name = parts[2]
+        else:
+            # Show interactive menu to select agent
+            agents = config.get_agents()
 
-        name = parts[2]
+            if not agents:
+                ui.print_info("No agents configured. Use /agent create to make one.")
+                return True
+
+            from agent_cli.interactive_select import SingleSelect
+
+            agent_options = [
+                {"key": "default", "label": "🔄 Default (No Agent)", "icon": ""},
+            ]
+
+            for agent_name, agent_data in agents.items():
+                beads = agent_data.get("beads", [])
+                label = agent_name
+                if beads:
+                    label = f"{agent_name} ({len(beads)} beads)"
+
+                agent_options.append({
+                    "key": agent_name,
+                    "label": label,
+                    "icon": "🤖",
+                })
+
+            ui.console.print("\n[bold cyan]Select agent:[/bold cyan]")
+            selector = SingleSelect(
+                agent_options,
+                title="",
+                instruction="Use ↑/↓ to navigate, ENTER to select, ESC to cancel"
+            )
+            name = selector.show()
+
+            if not name:
+                ui.print_info("Cancelled")
+                return True
 
         if name == "default":
             # clear system prompt logic
@@ -769,7 +877,7 @@ def handle_bead(command: str, context: dict) -> bool:
     manager = BeadsManager()
 
     if action == "list":
-        # Optional type filter
+        # Optional type filter - show menu if not specified
         bead_type = None
         if len(parts) >= 3:
             type_str = parts[2].lower()
@@ -784,6 +892,34 @@ def handle_bead(command: str, context: dict) -> bool:
                     f"Valid types: base, professional, domain, modifier, behavior"
                 )
                 return True
+        else:
+            # Show interactive menu to select type (or all)
+            from agent_cli.interactive_select import SingleSelect
+
+            type_options = [
+                {"key": "all", "label": "📦 All Beads", "icon": ""},
+                {"key": "base", "label": "Core Personality", "icon": "🎯"},
+                {"key": "professional", "label": "Communication Style", "icon": "💼"},
+                {"key": "domain", "label": "Expertise Areas", "icon": "🔧"},
+                {"key": "modifier", "label": "Response Adjustments", "icon": "⚙️"},
+                {"key": "behavior", "label": "Behavioral Patterns", "icon": "🎭"},
+            ]
+
+            ui.console.print("\n[bold cyan]Select bead category:[/bold cyan]")
+            selector = SingleSelect(
+                type_options,
+                title="",
+                instruction="Use ↑/↓ to navigate, ENTER to select, ESC to cancel"
+            )
+            selected = selector.show()
+
+            if not selected:
+                ui.print_info("Cancelled")
+                return True
+
+            if selected != "all":
+                from agent_cli.personality_beads import BeadType
+                bead_type = BeadType(selected)
 
         # Get beads
         beads = manager.bead_library.list_beads(bead_type)
@@ -809,11 +945,48 @@ def handle_bead(command: str, context: dict) -> bool:
         ui.print_table(title, ["ID", "Name", "Type", "Tags", "Description"], rows)
 
     elif action == "show":
-        if len(parts) < 3:
-            ui.print_info("Usage: /bead show <id>")
-            return True
+        bead_id = None
+        if len(parts) >= 3:
+            bead_id = parts[2]
+        else:
+            # Show interactive menu to select bead
+            from agent_cli.interactive_select import SingleSelect
 
-        bead_id = parts[2]
+            all_beads = manager.bead_library.list_beads()
+            if not all_beads:
+                ui.print_info("No beads available.")
+                return True
+
+            bead_options = []
+            for bead in all_beads:
+                # Get type icon
+                type_icons = {
+                    "base": "🎯",
+                    "professional": "💼",
+                    "domain": "🔧",
+                    "modifier": "⚙️",
+                    "behavior": "🎭",
+                }
+                icon = type_icons.get(bead.type.value, "📦")
+
+                bead_options.append({
+                    "key": bead.id,
+                    "label": f"{bead.name}",
+                    "icon": icon,
+                })
+
+            ui.console.print("\n[bold cyan]Select a bead to view:[/bold cyan]")
+            selector = SingleSelect(
+                bead_options,
+                title="",
+                instruction="Use ↑/↓ to navigate, ENTER to select, ESC to cancel"
+            )
+            bead_id = selector.show()
+
+            if not bead_id:
+                ui.print_info("Cancelled")
+                return True
+
         bead = manager.bead_library.get_bead(bead_id)
 
         if not bead:
@@ -1413,20 +1586,20 @@ def handle_init(command: str, **kwargs) -> bool:
     # Provider selection
     if not provider:
         provider_options = [
-            {"label": "🧠 Anthropic (Claude 3.5)", "value": "anthropic",
+            {"key": "anthropic", "label": "🧠 Anthropic (Claude 3.5)",
              "description": "Best for coding, reasoning, and complex tasks"},
-            {"label": "🤖 OpenAI (GPT-4o, o1)", "value": "openai",
+            {"key": "openai", "label": "🤖 OpenAI (GPT-4o, o1)",
              "description": "Excellent all-rounder with strong performance"},
-            {"label": "✨ Google (Gemini 1.5)", "value": "google",
+            {"key": "google", "label": "✨ Google (Gemini 1.5)",
              "description": "Fast and cost-effective with large context"},
-            {"label": "🦙 Ollama (Local)", "value": "ollama",
+            {"key": "ollama", "label": "🦙 Ollama (Local)",
              "description": "Privacy-focused local models"},
         ]
 
         # Highlight recommended provider if we have analysis
         if analysis and analysis.recommended_provider:
             for opt in provider_options:
-                if opt["value"] == analysis.recommended_provider:
+                if opt["key"] == analysis.recommended_provider:
                     opt["label"] = opt["label"] + " [bold cyan](Recommended)[/bold cyan]"
                     # Move to front
                     provider_options.remove(opt)
@@ -1461,8 +1634,8 @@ def handle_init(command: str, **kwargs) -> bool:
                 label = f"{label} [bold cyan](Recommended)[/bold cyan]"
 
             template_options.append({
+                "key": template_obj.id,
                 "label": label,
-                "value": template_obj.id,
                 "description": template_obj.description
             })
 
@@ -1479,9 +1652,9 @@ def handle_init(command: str, **kwargs) -> bool:
     if not quick_mode:
         ui.console.print("\n[bold]Select configuration format:[/bold]")
         format_options = [
-            {"label": "📄 Markdown (claude.md, gpt.md, etc.)", "value": "markdown",
+            {"key": "markdown", "label": "📄 Markdown (claude.md, gpt.md, etc.)",
              "description": "Human-friendly, easy to read and edit"},
-            {"label": "📋 YAML (.agent.yml)", "value": "yaml",
+            {"key": "yaml", "label": "📋 YAML (.agent.yml)",
              "description": "Structured, machine-readable format"},
         ]
         selector = SingleSelect(format_options)
