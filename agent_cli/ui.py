@@ -688,10 +688,9 @@ class InteractiveSession:
             )
             final_style = merge_styles([self.session.style, simple_toolbar])
 
-            # Build prompt with model name on left
-            short_model = self._shorten_model_name(self.model)
+            # Build prompt with provider icon
             icon = self._get_provider_icon(self.provider)
-            prompt_text = f"{icon} {short_model} | You ➜ "
+            prompt_text = f"{icon} You ➜ "
 
             return self.session.prompt(
                 [("class:prompt.text", prompt_text)],
@@ -791,7 +790,7 @@ class InteractiveSession:
                                 text=[
                                     (
                                         "class:prompt",
-                                        f"{self._get_provider_icon(self.provider)} {self._shorten_model_name(self.model)} | You ➜ ",
+                                        f"{self._get_provider_icon(self.provider)} You ➜ ",
                                     )
                                 ]
                             ),
