@@ -427,22 +427,27 @@ class InteractiveSession:
 
             # Commands with horizontal separators
             for idx, item in enumerate(self.items):
-                # Ensure display is a string (handle FormattedText)
-                from prompt_toolkit.formatted_text import to_plain_text
-                if isinstance(item.display, list): # FormattedText is a list
-                     cmd = to_plain_text(item.display)
-                else:
-                     cmd = str(item.display)
-                
-                if isinstance(item.display_meta, list):
-                     desc = to_plain_text(item.display_meta)
-                else:
-                     desc = str(item.display_meta) if item.display_meta else ""
-                
-                # Truncate if too long
-                cmd = cmd[:15]
-                desc = desc[:45]
-                desc = desc[:45]
+                try:
+                    from prompt_toolkit.formatted_text import to_plain_text
+                    
+                    d_val = item.display
+                    if isinstance(d_val, list): 
+                         cmd = to_plain_text(d_val)
+                    else:
+                         cmd = str(d_val)
+                    
+                    dm_val = item.display_meta
+                    if isinstance(dm_val, list):
+                         desc = to_plain_text(dm_val)
+                    else:
+                         desc = str(dm_val) if dm_val else ""
+                    
+                    # Truncate
+                    cmd = cmd[:15]
+                    desc = desc[:45]
+                except Exception:
+                    cmd = "Error"
+                    desc = ""
 
                 is_selected = idx == self.selected_index
 
