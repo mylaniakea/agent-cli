@@ -261,7 +261,7 @@ def handle_context(command: str, **kwargs) -> bool:
         if subcommand == "status" or command.strip() == "/context":
             # Show context summary
             summary = manager.get_context_summary()
-            ui.console.print(f"\n[bold]Project Context[/bold]\n")
+            ui.console.print("\n[bold]Project Context[/bold]\n")
             ui.console.print(summary)
             ui.console.print()
 
@@ -570,6 +570,9 @@ def handle_agent(command: str, context: dict) -> bool:
         if name == "default":
             # clear system prompt logic
             context[CONTEXT_KEY_SYSTEM_PROMPT] = None
+            # Clear bead pills
+            if ui.interactive_session:
+                ui.interactive_session.set_active_beads([])
             ui.print_success("Switched to default agent (no system prompt).")
             return True
 
@@ -577,12 +580,28 @@ def handle_agent(command: str, context: dict) -> bool:
         if agent_data:
             model = agent_data.get("model")
             system_prompt = agent_data.get("system_prompt")
+            bead_ids = agent_data.get("beads", [])
 
             # Update context
             context[CONTEXT_KEY_MODEL] = model
             context[CONTEXT_KEY_SYSTEM_PROMPT] = system_prompt
 
+            # Update UI with bead pills
+            if ui.interactive_session and bead_ids:
+                from agent_cli.beads import BeadsManager
+
+                manager = BeadsManager()
+                beads = []
+                for bead_id in bead_ids:
+                    bead = manager.bead_library.get_bead(bead_id)
+                    if bead:
+                        beads.append(bead)
+
+                ui.interactive_session.set_active_beads(beads)
+
             ui.print_success(f"Switched to agent '{name}' ({model})")
+            if bead_ids:
+                ui.print_info(f"Active beads: {', '.join(bead_ids)}")
         else:
             ui.print_error(f"Agent '{name}' not found.")
 
@@ -610,6 +629,283 @@ def handle_agent(command: str, context: dict) -> bool:
             )
         else:
             ui.print_error(f"Agent '{name}' not found.")
+
+    elif action == "add-bead":
+        if len(parts) < 3:
+            ui.print_info("Usage: /agent add-bead <name> <bead_id>")
+            return True
+
+        # Parse name and bead_id
+        args = parts[2].split(None, 1)
+        if len(args) < 2:
+            ui.print_error("Usage: /agent add-bead <name> <bead_id>")
+            return True
+
+        name = args[0]
+        bead_id = args[1]
+
+        # Get agent
+        agent_data = config.get_agent(name)
+        if not agent_data:
+            ui.print_error(f"Agent '{name}' not found.")
+            return True
+
+        # Get current beads list
+        current_beads = agent_data.get("beads", [])
+
+        # Check if bead already exists
+        if bead_id in current_beads:
+            ui.print_warning(f"Bead '{bead_id}' already in agent '{name}'")
+            return True
+
+        # Verify bead exists
+        from agent_cli.beads import BeadsManager
+
+        manager = BeadsManager()
+        bead = manager.bead_library.get_bead(bead_id)
+        if not bead:
+            ui.print_error(f"Bead '{bead_id}' not found in library")
+            return True
+
+        # Add bead
+        updated_beads = current_beads + [bead_id]
+
+        # Recompose personality
+        system_prompt = manager.compose_personality(updated_beads)
+
+        # Update agent
+        config.add_agent(
+            name, system_prompt, agent_data.get("model"), beads=updated_beads
+        )
+        ui.print_success(f"Added bead '{bead_id}' to agent '{name}'")
+
+    elif action == "remove-bead":
+        if len(parts) < 3:
+            ui.print_info("Usage: /agent remove-bead <name> <bead_id>")
+            return True
+
+        # Parse name and bead_id
+        args = parts[2].split(None, 1)
+        if len(args) < 2:
+            ui.print_error("Usage: /agent remove-bead <name> <bead_id>")
+            return True
+
+        name = args[0]
+        bead_id = args[1]
+
+        # Get agent
+        agent_data = config.get_agent(name)
+        if not agent_data:
+            ui.print_error(f"Agent '{name}' not found.")
+            return True
+
+        # Get current beads list
+        current_beads = agent_data.get("beads", [])
+
+        # Check if agent has beads
+        if not current_beads:
+            ui.print_error(f"Agent '{name}' has no beads")
+            return True
+
+        # Check if bead exists in agent
+        if bead_id not in current_beads:
+            ui.print_error(f"Bead '{bead_id}' not found in agent '{name}'")
+            return True
+
+        # Remove bead
+        updated_beads = [b for b in current_beads if b != bead_id]
+
+        # Recompose personality
+        from agent_cli.beads import BeadsManager
+
+        manager = BeadsManager()
+        system_prompt = manager.compose_personality(updated_beads)
+
+        # Update agent
+        config.add_agent(
+            name, system_prompt, agent_data.get("model"), beads=updated_beads
+        )
+        ui.print_success(f"Removed bead '{bead_id}' from agent '{name}'")
+
+    else:
+        ui.print_error(f"Unknown action: {action}")
+
+    return True
+
+
+@register_command(
+    name="bead",
+    description="Manage personality beads",
+    usage="/bead <action> [args]",
+    aliases=[],
+    category="config",
+    detailed_help="Manage personality beads for composing AI personalities.\n"
+    "Actions:\n"
+    "  list [type]          - List all beads or filter by type\n"
+    "  show <id>            - Show detailed information about a bead\n"
+    "  search <query>       - Search beads by name, tags, or description\n"
+    "  test <bead1,bead2,...> - Preview composed personality from beads\n"
+    "\n"
+    "Bead types: base, professional, domain, modifier, behavior\n"
+    "\n"
+    "Examples:\n"
+    "  /bead list\n"
+    "  /bead list domain\n"
+    "  /bead show python-expert\n"
+    "  /bead search code\n"
+    "  /bead test helpful,python-expert,concise",
+)
+def handle_bead(command: str, context: dict) -> bool:
+    """Handle /bead command."""
+    from agent_cli.beads import BeadsManager
+    from agent_cli.ui import ui
+
+    parts = command.split(None, 2)
+    if len(parts) < 2:
+        ui.print_info("Usage: /bead <list|show|search|test> [args]")
+        return True
+
+    action = parts[1].lower()
+    manager = BeadsManager()
+
+    if action == "list":
+        # Optional type filter
+        bead_type = None
+        if len(parts) >= 3:
+            type_str = parts[2].lower()
+            # Validate type
+            from agent_cli.personality_beads import BeadType
+
+            try:
+                bead_type = BeadType(type_str)
+            except ValueError:
+                ui.print_error(
+                    f"Invalid bead type: {type_str}. "
+                    f"Valid types: base, professional, domain, modifier, behavior"
+                )
+                return True
+
+        # Get beads
+        beads = manager.bead_library.list_beads(bead_type)
+
+        if not beads:
+            ui.print_info("No beads found.")
+            return True
+
+        # Display as table
+        rows = []
+        for bead in beads:
+            rows.append(
+                [
+                    bead.id,
+                    bead.name,
+                    bead.type.value,
+                    ", ".join(bead.tags[:3]),  # First 3 tags
+                    bead.description[:40] + "..." if len(bead.description) > 40 else bead.description,
+                ]
+            )
+
+        title = f"Personality Beads ({len(beads)})" if not bead_type else f"{bead_type.value.capitalize()} Beads ({len(beads)})"
+        ui.print_table(title, ["ID", "Name", "Type", "Tags", "Description"], rows)
+
+    elif action == "show":
+        if len(parts) < 3:
+            ui.print_info("Usage: /bead show <id>")
+            return True
+
+        bead_id = parts[2]
+        bead = manager.bead_library.get_bead(bead_id)
+
+        if not bead:
+            ui.print_error(f"Bead '{bead_id}' not found.")
+            return True
+
+        # Display detailed info
+        from agent_cli.personality_beads import get_bead_shortname
+
+        short_name = get_bead_shortname(bead)
+
+        ui.print_markdown(
+            f"**{bead.name}** (`{bead.id}`)\n\n"
+            f"- **Type:** {bead.type.value}\n"
+            f"- **Priority:** {bead.priority}\n"
+            f"- **Override Mode:** {bead.override_mode.value}\n"
+            f"- **Short Name:** {short_name}\n"
+            f"- **Tags:** {', '.join(bead.tags) if bead.tags else 'None'}\n"
+            f"- **Author:** {bead.author or 'Unknown'}\n"
+            f"- **Version:** {bead.version}\n\n"
+            f"**Description:**\n{bead.description}\n\n"
+            f"**Content:**\n```\n{bead.content}\n```"
+        )
+
+    elif action == "search":
+        if len(parts) < 3:
+            ui.print_info("Usage: /bead search <query>")
+            return True
+
+        query = parts[2]
+        beads = manager.bead_library.search_beads(query)
+
+        if not beads:
+            ui.print_info(f"No beads found matching '{query}'.")
+            return True
+
+        # Display as table
+        rows = []
+        for bead in beads:
+            rows.append(
+                [
+                    bead.id,
+                    bead.name,
+                    bead.type.value,
+                    ", ".join(bead.tags[:3]),
+                    bead.description[:40] + "..." if len(bead.description) > 40 else bead.description,
+                ]
+            )
+
+        ui.print_table(
+            f"Search Results for '{query}' ({len(beads)})",
+            ["ID", "Name", "Type", "Tags", "Description"],
+            rows,
+        )
+
+    elif action == "test":
+        if len(parts) < 3:
+            ui.print_info("Usage: /bead test <bead1,bead2,...>")
+            return True
+
+        # Parse bead IDs
+        bead_ids = [b.strip() for b in parts[2].split(",") if b.strip()]
+
+        if not bead_ids:
+            ui.print_error("No bead IDs provided.")
+            return True
+
+        # Compose personality
+        system_prompt = manager.compose_personality(bead_ids)
+
+        if not system_prompt:
+            ui.print_error("Failed to compose personality. Check that all bead IDs are valid.")
+            return True
+
+        # Show composition
+        ui.print_success(f"Composed personality from beads: {', '.join(bead_ids)}")
+        ui.print_markdown(f"```\n{system_prompt}\n```")
+
+        # Show which beads were found and loaded
+        beads = []
+        missing = []
+        for bead_id in bead_ids:
+            bead = manager.bead_library.get_bead(bead_id)
+            if bead:
+                beads.append(bead)
+            else:
+                missing.append(bead_id)
+
+        if missing:
+            ui.print_warning(f"Missing beads: {', '.join(missing)}")
+
+        ui.print_info(f"\nTotal: {len(system_prompt)} characters")
 
     else:
         ui.print_error(f"Unknown action: {action}")
