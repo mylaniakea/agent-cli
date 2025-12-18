@@ -2,6 +2,7 @@
 
 import re
 import sys
+from importlib.metadata import version
 from pathlib import Path
 from typing import Optional
 
@@ -521,7 +522,7 @@ def run_non_interactive_mode(
 
 
 @click.group()
-@click.version_option(version="1.1.0")
+@click.version_option(version=version("agent-cli"))
 def cli():
     """Agent CLI - A custom LLM CLI with local and external agent support."""
     pass
