@@ -381,28 +381,38 @@ class InteractiveSession:
             self.visible = False
             self.selected_index = 0
             self.items = []  # List of Completion objects
+            self.max_rows = 8  # Maximum rows to display before scrolling
+            self.scroll_offset = 0
 
         def show(self, items):
             """Show menu with given items (completions)."""
             self.items = items
             self.visible = True
             self.selected_index = 0
+            self.scroll_offset = 0
 
         def hide(self):
             """Hide the menu."""
             self.visible = False
             self.items = []
             self.selected_index = 0
+            self.scroll_offset = 0
 
         def move_up(self):
-            """Move selection up."""
+            """Move selection up with scrolling."""
             if self.items:
                 self.selected_index = max(0, self.selected_index - 1)
+                # Adjust scroll offset
+                if self.selected_index < self.scroll_offset:
+                    self.scroll_offset = self.selected_index
 
         def move_down(self):
-            """Move selection down."""
+            """Move selection down with scrolling."""
             if self.items:
                 self.selected_index = min(len(self.items) - 1, self.selected_index + 1)
+                # Adjust scroll offset
+                if self.selected_index >= self.scroll_offset + self.max_rows:
+                    self.scroll_offset = self.selected_index - self.max_rows + 1
 
         def get_selected(self):
             """Get currently selected Completion."""
@@ -416,6 +426,10 @@ class InteractiveSession:
                 return []
 
             lines = []
+            # Calculate view window
+            start_idx = self.scroll_offset
+            end_idx = min(len(self.items), start_idx + self.max_rows)
+            
             # Top border with title
             lines.append(("class:menu.border", "╔══════════════════╦══════════════════════════════════════════════╗\n"))
             lines.append(("class:menu.border", "║ "))
@@ -425,8 +439,13 @@ class InteractiveSession:
             lines.append(("class:menu.border", "║\n"))
             lines.append(("class:menu.border", "╠══════════════════╬══════════════════════════════════════════════╣\n"))
 
-            # Commands with horizontal separators
-            for idx, item in enumerate(self.items):
+            # Commands with horizontal separators (only visible ones)
+            visible_items = self.items[start_idx:end_idx]
+            
+            for i, item in enumerate(visible_items):
+                # Calculate real index
+                real_idx = start_idx + i
+                
                 try:
                     from prompt_toolkit.formatted_text import to_plain_text
                     
@@ -449,33 +468,38 @@ class InteractiveSession:
                     cmd = "Error"
                     desc = ""
 
-                is_selected = idx == self.selected_index
+                is_selected = real_idx == self.selected_index
 
                 if is_selected:
-                    # Highlighted row with vertical separator
                     lines.append(("class:menu.selected", "║ "))
                     lines.append(("class:menu.selected", f"▶ {cmd:<15} "))
                     lines.append(("class:menu.selected", "║ "))
                     lines.append(("class:menu.selected.desc", f"{desc:<45}"))
                     lines.append(("class:menu.selected", "║\n"))
                 else:
-                    # Normal row with vertical separator
                     lines.append(("class:menu.border", "║ "))
                     lines.append(("class:menu.normal", f"  {cmd:<15} "))
                     lines.append(("class:menu.border", "║ "))
                     lines.append(("class:menu.desc", f"{desc:<45}"))
                     lines.append(("class:menu.border", "║\n"))
 
-                # Add horizontal separator between rows (except last)
-                if idx < len(self.items) - 1:
-                    if is_selected or (idx + 1 < len(self.items) and self.selected_index == idx + 1):
+                # Add horizontal separator between rows (except last in view)
+                if i < len(visible_items) - 1:
+                    if is_selected or (real_idx + 1 == self.selected_index):
                         lines.append(("class:menu.selected", "╟──────────────────╫──────────────────────────────────────────────╢\n"))
                     else:
                         lines.append(("class:menu.separator", "╟──────────────────╫──────────────────────────────────────────────╢\n"))
 
             # Bottom border with instructions
             lines.append(("class:menu.border", "╚══════════════════╩══════════════════════════════════════════════╝\n"))
-            lines.append(("class:menu.instructions", "  ↑↓ navigate  │  TAB/ENTER select  │  ESC cancel  "))
+            
+            # Show scroll info if needed
+            total = len(self.items)
+            if total > self.max_rows:
+                info = f" {start_idx+1}-{end_idx} of {total} "
+                lines.append(("class:menu.instructions", f"  ↑↓ navigate  │  TAB/ENTER select  │  ESC cancel │{info}"))
+            else:
+                lines.append(("class:menu.instructions", "  ↑↓ navigate  │  TAB/ENTER select  │  ESC cancel  "))
 
             return lines
 
@@ -941,8 +965,9 @@ class InteractiveSession:
                 return 0
             # Top border (1) + Header (2) + Commands + Separators + Bottom (1) + Instructions (1)
             # Each command = 1 line, separator between = commands - 1
-            num_commands = len(self.command_menu.items)
-            return 1 + 2 + num_commands + (num_commands - 1 if num_commands > 1 else 0) + 1 + 1
+            # Cap at max_rows
+            num_rows = min(len(self.command_menu.items), self.command_menu.max_rows)
+            return 1 + 2 + num_rows + (num_rows - 1 if num_rows > 1 else 0) + 1 + 1
 
         menu_window = Window(
             content=FormattedTextControl(lambda: self.command_menu.render()),
