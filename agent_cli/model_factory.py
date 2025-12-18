@@ -93,6 +93,10 @@ class ModelFactory:
         Returns:
             True if model is valid, False otherwise
         """
+        # Ollama models are user-installed and dynamic, so skip validation
+        if provider.lower() == "ollama":
+            return True
+
         metadata = cls.get_model_metadata(provider, model_name)
         return metadata is not None
 

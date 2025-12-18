@@ -452,26 +452,73 @@ class InteractiveSession:
             "THEME": None,
         }
 
-        self.completer_dict = {
-            "/help": None,
-            "/model": None,
-            "/provider": {"ollama": None, "openai": None, "anthropic": None, "google": None},
-            "/stream": {"true": None, "false": None},
-            "/clear": None,
-            "/history": None,
-            "/session": None,
-            "/config": None,
-            "/mcp": None,
-            "/set": config_keys,
-            "/theme": {t: None for t in ui_manager.theme_manager.get_available_themes()},
-            "/agent": {"create": None, "list": None, "use": None, "delete": None, "show": None},
-            "/keepalive": None,
-            "/reasoning": None,
-            "/compress": None,
-            "/beads": {"status": None, "context": None},
-            "exit": None,
-            "quit": None,
-        }
+        # Build completer dict from registered commands
+        # Try to load from command registry, but fall back to basic list if not available
+        try:
+            from agent_cli.command_registry import get_all_commands
+
+            registered_commands = get_all_commands()
+            self.completer_dict = {}
+
+            # Add all registered commands
+            for cmd_name, cmd_info in registered_commands.items():
+                # Only add primary command names (not aliases)
+                if cmd_name == cmd_info.name:
+                    self.completer_dict[f"/{cmd_name}"] = None
+
+        except (ImportError, Exception):
+            # Fallback to basic command list if registry not available
+            self.completer_dict = {
+                "/help": None,
+                "/model": None,
+                "/provider": None,
+                "/stream": None,
+                "/clear": None,
+                "/history": None,
+                "/session": None,
+                "/config": None,
+                "/mcp": None,
+                "/set": None,
+                "/theme": None,
+                "/agent": None,
+                "/keepalive": None,
+                "/reasoning": None,
+                "/compress": None,
+                "/beads": None,
+                "/init": None,
+                "/context": None,
+                "/hooks": None,
+            }
+
+        # Add special completions for specific commands
+        if "/provider" in self.completer_dict:
+            self.completer_dict["/provider"] = {"ollama": None, "openai": None, "anthropic": None, "google": None}
+
+        if "/stream" in self.completer_dict:
+            self.completer_dict["/stream"] = {"true": None, "false": None}
+
+        if "/set" in self.completer_dict:
+            self.completer_dict["/set"] = config_keys
+
+        if "/theme" in self.completer_dict:
+            self.completer_dict["/theme"] = {t: None for t in ui_manager.theme_manager.get_available_themes()}
+
+        if "/agent" in self.completer_dict:
+            self.completer_dict["/agent"] = {"create": None, "list": None, "use": None, "delete": None, "show": None}
+
+        if "/beads" in self.completer_dict:
+            self.completer_dict["/beads"] = {"status": None, "context": None}
+
+        # Add subcommands for new commands
+        if "/context" in self.completer_dict:
+            self.completer_dict["/context"] = {"status": None, "update": None, "view": None, "add": None}
+
+        if "/hooks" in self.completer_dict:
+            self.completer_dict["/hooks"] = {"install": None, "uninstall": None, "list": None}
+
+        # Add common exit commands
+        self.completer_dict["exit"] = None
+        self.completer_dict["quit"] = None
 
         self.slash_completer = InteractiveSession.SlashCommandCompleter(
             self.completer_dict, self.ui
