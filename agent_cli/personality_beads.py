@@ -297,3 +297,139 @@ class BeadLibrary:
             Count of beads in library
         """
         return len(self._beads)
+
+
+# ============================================================
+# Bead Pill UI Rendering (Phase 3)
+# ============================================================
+
+# Shortname mapping for display
+BEAD_SHORTNAMES = {
+    "python-expert": "python",
+    "javascript-expert": "js",
+    "rust-expert": "rust",
+    "data-scientist": "data",
+    "devops-expert": "devops",
+    "frontend-dev": "frontend",
+    "analytical": "analytic",
+    "supportive": "support",
+    "technical": "tech",
+    "executive": "exec",
+    "humorous": "humor",
+}
+
+# Color mapping by bead type
+BEAD_TYPE_COLORS = {
+    BeadType.BASE: "#a6e3a1",        # Green
+    BeadType.PROFESSIONAL: "#89b4fa", # Blue
+    BeadType.DOMAIN: "#cba6f7",      # Purple
+    BeadType.MODIFIER: "#f9e2af",    # Yellow
+    BeadType.BEHAVIOR: "#89dceb",    # Cyan
+}
+
+
+def get_bead_shortname(bead: PersonalityBead) -> str:
+    """Get shortened display name for a bead.
+
+    Args:
+        bead: The bead to get shortname for
+
+    Returns:
+        Shortened name suitable for display
+    """
+    return BEAD_SHORTNAMES.get(bead.id, bead.id[:8])
+
+
+def is_light_color(hex_color: str) -> bool:
+    """Determine if a color is light (needs dark text).
+
+    Args:
+        hex_color: Hex color string like "#a6e3a1"
+
+    Returns:
+        True if color is light, False if dark
+    """
+    # Remove # if present
+    hex_color = hex_color.lstrip("#")
+
+    # Convert to RGB
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+
+    # Calculate relative luminance
+    luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+
+    return luminance > 0.5
+
+
+def get_bead_color(bead_type: BeadType, theme: Optional[dict] = None) -> str:
+    """Get themed color for a bead type.
+
+    Args:
+        bead_type: The type of bead
+        theme: Optional theme dict to pull colors from
+
+    Returns:
+        Hex color string
+    """
+    # Use theme colors if available, otherwise defaults
+    if theme:
+        # Try to get color from theme based on bead type
+        # This maps to rich theme color names
+        theme_keys = {
+            BeadType.BASE: "repr.number",      # Green-ish
+            BeadType.PROFESSIONAL: "repr.url", # Blue-ish
+            BeadType.DOMAIN: "repr.tag_name",  # Purple-ish
+            BeadType.MODIFIER: "repr.attrib_name", # Yellow-ish
+            BeadType.BEHAVIOR: "repr.str",     # Cyan-ish
+        }
+
+        key = theme_keys.get(bead_type)
+        if key and key in theme:
+            return theme[key]
+
+    # Fallback to default colors
+    return BEAD_TYPE_COLORS.get(bead_type, "#888888")
+
+
+def render_bead_pills(beads: list[PersonalityBead], theme: Optional[dict] = None, max_display: int = 5) -> list[tuple]:
+    """Render beads as colored pill tokens for prompt_toolkit.
+
+    Args:
+        beads: List of beads to render
+        theme: Optional theme dict for colors
+        max_display: Maximum beads to show before truncating
+
+    Returns:
+        List of (style, text) tuples for FormattedText
+    """
+    if not beads:
+        return []
+
+    pills = []
+    display_beads = beads[:max_display]
+    remaining = len(beads) - max_display
+
+    for bead in display_beads:
+        # Get color for this bead type
+        bg_color = get_bead_color(bead.type, theme)
+
+        # Determine text color for contrast
+        text_color = "#000000" if is_light_color(bg_color) else "#ffffff"
+
+        # Get shortname
+        short_name = get_bead_shortname(bead)
+
+        # Create pill style with background and text color
+        style = f"bg:{bg_color} {text_color}"
+
+        # Add pill with brackets
+        pills.append((style, f"[{short_name}]"))
+        pills.append(("", " "))  # Space between pills
+
+    # Add truncation indicator if needed
+    if remaining > 0:
+        pills.append(("", f"[+{remaining}] "))
+
+    return pills

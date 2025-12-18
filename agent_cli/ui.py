@@ -533,12 +533,50 @@ class InteractiveSession:
         self.provider = "Unknown"
         self.model = "Unknown"
         self.is_connected = False
+        self.active_beads = []  # List of PersonalityBead objects
 
     def update_status(self, provider: str, model: str, connected: bool = True):
         """Update status bar info."""
         self.provider = provider
         self.model = model
         self.is_connected = connected
+
+    def set_active_beads(self, beads: list):
+        """Set the active personality beads for display.
+
+        Args:
+            beads: List of PersonalityBead objects
+        """
+        self.active_beads = beads if beads else []
+
+    def _build_prompt_tokens(self) -> list:
+        """Build prompt tokens including icon, name, bead pills, and arrow.
+
+        Returns:
+            List of (style, text) tuples for FormattedText
+        """
+        icon = self._get_provider_icon(self.provider)
+        prompt_name = self.ui.config.prompt_name
+
+        # Build prompt tokens
+        tokens = [
+            ("class:prompt", f"{icon} {prompt_name} "),
+        ]
+
+        # Add bead pills if any active
+        if self.active_beads:
+            try:
+                from agent_cli.personality_beads import render_bead_pills
+
+                pill_tokens = render_bead_pills(self.active_beads, theme=None, max_display=5)
+                tokens.extend(pill_tokens)
+            except Exception:
+                pass  # Silently fail if pills can't render
+
+        # Add arrow
+        tokens.append(("class:prompt", "➜ "))
+
+        return tokens
 
     def update_completion_models(self, models: list[str]):
         """Update the list of models for autocomplete."""
@@ -688,13 +726,11 @@ class InteractiveSession:
             )
             final_style = merge_styles([self.session.style, simple_toolbar])
 
-            # Build prompt with provider icon and configurable name
-            icon = self._get_provider_icon(self.provider)
-            prompt_name = self.ui.config.prompt_name
-            prompt_text = f"{icon} {prompt_name} ➜ "
+            # Build prompt tokens with beads
+            prompt_tokens = self._build_prompt_tokens()
 
             return self.session.prompt(
-                [("class:prompt.text", prompt_text)],
+                prompt_tokens,
                 bottom_toolbar=get_bottom_toolbar_simple,
                 style=final_style,
                 refresh_interval=1.0,
@@ -788,12 +824,7 @@ class InteractiveSession:
                         ),
                         Window(
                             content=FormattedTextControl(
-                                text=[
-                                    (
-                                        "class:prompt",
-                                        f"{self._get_provider_icon(self.provider)} {self.ui.config.prompt_name} ➜ ",
-                                    )
-                                ]
+                                text=self._build_prompt_tokens()
                             ),
                             dont_extend_width=True,
                         ),
