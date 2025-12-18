@@ -452,13 +452,17 @@ def handle_mcp(command: str, context: dict) -> bool:
     detailed_help="Manage specialized agent personas with custom system prompts.\n"
     "Actions:\n"
     "  list                 - List saved agents\n"
-    "  create <name> <model> - Create a new agent (interactive prompt follows)\n"
+    "  create <name> <model> [--beads bead1,bead2,...] - Create a new agent\n"
     "  use <name>           - Switch to a specific agent persona\n"
     "  delete <name>        - Delete an agent\n"
     "  show <name>          - Show agent details\n"
+    "  add-bead <name> <bead_id>    - Add a bead to an agent\n"
+    "  remove-bead <name> <bead_id> - Remove a bead from an agent\n"
     "\n"
     "Examples:\n"
-    "  /agent create coder llama3\n"
+    "  /agent create coder llama3 --beads helpful,python-expert,concise\n"
+    "  /agent create reviewer gpt-4 (then enter system prompt manually)\n"
+    "  /agent add-bead coder patient\n"
     "  /agent use coder",
 )
 def handle_agent(command: str, context: dict) -> bool:
@@ -486,29 +490,72 @@ def handle_agent(command: str, context: dict) -> bool:
 
     elif action == "create":
         if len(parts) < 3:
-            ui.print_info("Usage: /agent create <name> <model>")
+            ui.print_info("Usage: /agent create <name> <model> [--beads bead1,bead2,...]")
             return True
 
-        args = parts[2].split(None, 1)
-        name = args[0]
-        model = args[1] if len(args) > 1 else context.get(CONTEXT_KEY_MODEL)
+        # Parse command for --beads flag
+        full_args = parts[2] if len(parts) > 2 else ""
+        beads_flag_idx = full_args.find("--beads")
 
-        ui.print_info(f"Creating agent '{name}' using model '{model}'.")
-        ui.print_info("Enter the System Prompt for this agent (press Enter twice to finish):")
+        if beads_flag_idx != -1:
+            # Extract beads
+            before_beads = full_args[:beads_flag_idx].strip()
+            after_beads = full_args[beads_flag_idx + 7:].strip()  # 7 = len("--beads")
 
-        # Simple multi-line input simulation via existing session if possible, else standard loop
-        lines = []
-        while True:
-            # We can't easily access the prompt session here without passing it or accessing global UI
-            # but we have 'ui' imported.
-            line = ui.interactive_session.session.prompt([("class:prompt", "> ")])
-            if not line:
-                break
-            lines.append(line)
+            # Parse name and model from before_beads
+            args = before_beads.split(None, 1)
+            name = args[0] if args else ""
+            model = args[1] if len(args) > 1 else context.get(CONTEXT_KEY_MODEL)
 
-        system_prompt = "\n".join(lines)
-        config.add_agent(name, system_prompt, model)
-        ui.print_success(f"Agent '{name}' created!")
+            # Parse bead IDs (comma-separated)
+            bead_ids = [b.strip() for b in after_beads.split(",") if b.strip()]
+
+            if not name or not bead_ids:
+                ui.print_error("Usage: /agent create <name> <model> --beads bead1,bead2,...")
+                return True
+
+            # Compose personality from beads
+            from agent_cli.beads import BeadsManager
+
+            manager = BeadsManager()
+            system_prompt = manager.compose_personality(bead_ids)
+
+            if not system_prompt:
+                ui.print_error("Failed to compose personality from beads")
+                return True
+
+            # Create agent with beads
+            config.add_agent(name, system_prompt, model, beads=bead_ids)
+            ui.print_success(f"Agent '{name}' created with beads: {', '.join(bead_ids)}")
+
+            # Show preview
+            ui.print_info("\nComposed personality (first 200 chars):")
+            ui.print_info(system_prompt[:200] + "..." if len(system_prompt) > 200 else system_prompt)
+
+        else:
+            # Traditional manual prompt entry
+            args = full_args.split(None, 1)
+            name = args[0] if args else ""
+            model = args[1] if len(args) > 1 else context.get(CONTEXT_KEY_MODEL)
+
+            if not name:
+                ui.print_error("Usage: /agent create <name> <model>")
+                return True
+
+            ui.print_info(f"Creating agent '{name}' using model '{model}'.")
+            ui.print_info("Enter the System Prompt for this agent (press Enter twice to finish):")
+
+            # Simple multi-line input simulation
+            lines = []
+            while True:
+                line = ui.interactive_session.session.prompt([("class:prompt", "> ")])
+                if not line:
+                    break
+                lines.append(line)
+
+            system_prompt = "\n".join(lines)
+            config.add_agent(name, system_prompt, model)
+            ui.print_success(f"Agent '{name}' created!")
 
     elif action == "use":
         if len(parts) < 3:

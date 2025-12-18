@@ -202,10 +202,23 @@ class Config:
                 return {}
         return {}
 
-    def add_agent(self, name: str, system_prompt: str, model: str):
-        """Add or update a specialized agent (persona)."""
+    def add_agent(self, name: str, system_prompt: str, model: str, beads: Optional[list[str]] = None):
+        """Add or update a specialized agent (persona).
+
+        Args:
+            name: Agent name
+            system_prompt: System prompt text
+            model: Model to use
+            beads: Optional list of bead IDs used to compose this agent
+        """
         agents = self.get_agents()
-        agents[name] = {"system_prompt": system_prompt, "model": model}
+        agent_data = {"system_prompt": system_prompt, "model": model}
+
+        # Add beads if provided (for v2.0.0 personality beads)
+        if beads:
+            agent_data["beads"] = beads
+
+        agents[name] = agent_data
         with open(self.agents_file, "w") as f:
             json.dump(agents, f, indent=2)
 
