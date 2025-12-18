@@ -934,6 +934,22 @@ class InteractiveSession:
         )
         final_style = merge_styles([self.session.style, custom_style])
 
+        # Create a window for the custom menu
+        def calculate_menu_height():
+            """Calculate height for spreadsheet menu with separators."""
+            if not self.command_menu.visible:
+                return 0
+            # Top border (1) + Header (2) + Commands + Separators + Bottom (1) + Instructions (1)
+            # Each command = 1 line, separator between = commands - 1
+            num_commands = len(self.command_menu.items)
+            return 1 + 2 + num_commands + (num_commands - 1 if num_commands > 1 else 0) + 1 + 1
+
+        menu_window = Window(
+            content=FormattedTextControl(lambda: self.command_menu.render()),
+            width=70,  # Fixed width for spreadsheet
+            height=calculate_menu_height,
+        )
+
         # Build layout with borders
         root_container = HSplit(
             [
@@ -967,42 +983,15 @@ class InteractiveSession:
                     content=FormattedTextControl(text=[("class:border", bottom_border)]),
                     height=1,
                 ),
+                # Custom menu below the prompt box (Conditional)
+                ConditionalContainer(
+                    content=menu_window,
+                    filter=Condition(lambda: self.command_menu.visible),
+                ),
             ]
         )
 
-        # Wrap in FloatContainer with custom command menu
-        # Create a window for the custom menu
-        def calculate_menu_height():
-            """Calculate height for spreadsheet menu with separators."""
-            if not self.command_menu.visible:
-                return 0
-            # Top border (1) + Header (2) + Commands + Separators + Bottom (1) + Instructions (1)
-            # Each command = 1 line, separator between = commands - 1
-            num_commands = len(self.command_menu.items)
-            return 1 + 2 + num_commands + (num_commands - 1 if num_commands > 1 else 0) + 1 + 1
-
-        menu_window = Window(
-            content=FormattedTextControl(lambda: self.command_menu.render()),
-            width=70,  # Fixed width for spreadsheet
-            height=calculate_menu_height,
-        )
-
-        # FloatContainer with command menu that shows when visible
-        float_container = FloatContainer(
-            content=root_container,
-            floats=[
-                Float(
-                    xcursor=True,
-                    ycursor=True,
-                    content=ConditionalContainer(
-                        content=menu_window,
-                        filter=Condition(lambda: self.command_menu.visible),
-                    ),
-                )
-            ],
-        )
-
-        layout = Layout(float_container, focused_element=buffer)
+        layout = Layout(root_container, focused_element=buffer)
 
         # Key bindings
         kb = KeyBindings()
@@ -1061,19 +1050,9 @@ class InteractiveSession:
 
         @kb.add("tab")
         def _(event):
-            """Handle tab - select from menu if visible."""
+            """Handle tab - cycle down in menu if visible."""
             if self.command_menu.visible:
-                # Same logic as Enter
-                completion = self.command_menu.get_selected()
-                if completion:
-                    b = event.current_buffer
-                    if completion.start_position is not None:
-                        b.delete_before_cursor(-completion.start_position)
-                    b.insert_text(completion.text)
-                    if completion.text.startswith("/"):
-                         b.insert_text(" ")
-                         
-                self.command_menu.hide()
+                self.command_menu.move_down()
                 event.app.invalidate()
             else:
                 # Normal tab behavior (indent)
@@ -1081,10 +1060,10 @@ class InteractiveSession:
 
         @kb.add("s-tab")
         def _(event):
-            """Handle shift-tab - move up in menu if visible."""
+            """Handle shift-tab - cycle up in menu if visible."""
             if self.command_menu.visible:
                 self.command_menu.move_up()
-                event.app.invalidate()  # Redraw to show updated selection
+                event.app.invalidate()
             else:
                 # Normal shift-tab behavior
                 b = event.app.current_buffer
