@@ -688,9 +688,10 @@ class InteractiveSession:
             )
             final_style = merge_styles([self.session.style, simple_toolbar])
 
-            # Build prompt with provider icon
+            # Build prompt with provider icon and configurable name
             icon = self._get_provider_icon(self.provider)
-            prompt_text = f"{icon} You ➜ "
+            prompt_name = self.ui.config.prompt_name
+            prompt_text = f"{icon} {prompt_name} ➜ "
 
             return self.session.prompt(
                 [("class:prompt.text", prompt_text)],
@@ -790,7 +791,7 @@ class InteractiveSession:
                                 text=[
                                     (
                                         "class:prompt",
-                                        f"{self._get_provider_icon(self.provider)} You ➜ ",
+                                        f"{self._get_provider_icon(self.provider)} {self.ui.config.prompt_name} ➜ ",
                                     )
                                 ]
                             ),
@@ -868,6 +869,10 @@ class UI:
     """Centralized UI manager."""
 
     def __init__(self):
+        # Load config for UI preferences
+        from agent_cli.config import Config
+        self.config = Config()
+
         # Filter default theme styles
         default_styles = {
             k: v for k, v in PRESET_THEMES["default"].items() if k != "border.pattern"

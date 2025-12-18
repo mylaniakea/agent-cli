@@ -99,6 +99,9 @@ class Config:
         self.primary_provider = self._get_value("PRIMARY_PROVIDER", "")
         self.fallback_provider = self._get_value("FALLBACK_PROVIDER", "")
 
+        # UI preferences
+        self.prompt_name = self._get_value("PROMPT_NAME", "You")
+
     def _get_value(self, key: str, default: str = "") -> str:
         """Get configuration value with priority: env > ini > .env > default.
 
@@ -159,6 +162,8 @@ class Config:
             self.primary_provider = value
         elif key_lower == "fallback_provider":
             self.fallback_provider = value
+        elif key_lower == "prompt_name":
+            self.prompt_name = value
 
     def get_value(self, key: str, default: str = "") -> str:
         """Get a configuration value.
