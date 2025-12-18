@@ -230,6 +230,80 @@ def handle_history(command: str, context: dict) -> bool:
 
 
 @register_command(
+    name="context",
+    description="Manage project context files",
+    usage="/context [status|update|view|add <note>]",
+    aliases=["ctx"],
+    category="session",
+    detailed_help="Manage project context files:\n"
+    "- /context or /context status - Show context summary\n"
+    "- /context update - Update context from git history\n"
+    "- /context view - View all context content\n"
+    "- /context add <note> - Add a note to context",
+)
+def handle_context(command: str, **kwargs) -> bool:
+    """Handle /context command."""
+    ui = kwargs.get("ui")
+    if not ui:
+        return True
+
+    from pathlib import Path
+
+    from agent_cli.context_manager import ContextManager
+
+    # Parse subcommand
+    parts = command.split(None, 1)
+    subcommand = parts[1].lower() if len(parts) > 1 else "status"
+
+    manager = ContextManager(Path.cwd())
+
+    try:
+        if subcommand == "status" or command.strip() == "/context":
+            # Show context summary
+            summary = manager.get_context_summary()
+            ui.console.print(f"\n[bold]Project Context[/bold]\n")
+            ui.console.print(summary)
+            ui.console.print()
+
+        elif subcommand == "update":
+            # Update context from git
+            ui.console.print("[cyan]Updating context from git history...[/cyan]")
+            manager.update_context()
+            ui.print_success("Context updated")
+
+        elif subcommand == "view":
+            # View all context
+            content = manager.read_all_context()
+            if content:
+                ui.console.print("\n[bold]Project Context Content[/bold]\n")
+                ui.console.print(content)
+            else:
+                ui.print_info("No context files found")
+
+        elif subcommand.startswith("add "):
+            # Add a note
+            note = subcommand[4:].strip()
+            if note:
+                manager.add_note(note)
+                ui.print_success("Note added to context")
+            else:
+                ui.print_error("Please provide a note to add")
+
+        else:
+            ui.print_error(f"Unknown subcommand: {subcommand}")
+            ui.console.print("\nUsage:")
+            ui.console.print("  /context [status] - Show context summary")
+            ui.console.print("  /context update - Update from git history")
+            ui.console.print("  /context view - View all context")
+            ui.console.print("  /context add <note> - Add a note")
+
+    except Exception as e:
+        ui.print_error(f"Context error: {e}")
+
+    return True
+
+
+@register_command(
     name="config",
     description="Show current configuration",
     usage="/config",
@@ -1103,6 +1177,51 @@ def handle_init(command: str, **kwargs) -> bool:
 
         ui.print_success(f"Created project config: {config_path}")
 
+        # Generate initial project context
+        if not quick_mode and analysis:
+            try:
+                from agent_cli.context_manager import initialize_project_context
+
+                ui.console.print("\n[cyan]📝 Generating project context...[/cyan]")
+
+                context_info = {
+                    "name": Path.cwd().name,
+                    "primary_language": analysis.primary_language,
+                    "frameworks": analysis.frameworks,
+                    "complexity": analysis.complexity,
+                    "total_loc": analysis.total_loc,
+                    "dependency_files": analysis.dependency_files,
+                    "has_tests": analysis.has_tests,
+                    "has_docs": analysis.has_docs,
+                    "has_ci": analysis.has_ci,
+                }
+
+                context_file = initialize_project_context(Path.cwd(), context_info)
+                ui.console.print(f"  ✓ Created context file: {context_file.relative_to(Path.cwd())}")
+            except Exception as e:
+                ui.console.print(f"  [yellow]Warning: Could not generate context: {e}[/yellow]")
+
+        # Offer to install git hooks
+        if not quick_mode and analysis and analysis.has_git:
+            try:
+                ui.console.print("\n[cyan]🔗 Git hooks setup[/cyan]")
+                response = input("  Install git hooks for automatic context updates? (Y/n): ").strip().lower()
+
+                if response in ["", "y", "yes"]:
+                    from agent_cli.git_hooks import install_git_hooks
+
+                    result = install_git_hooks(Path.cwd())
+
+                    if result["success"]:
+                        if result["installed"]:
+                            ui.console.print(f"  ✓ Installed hooks: {', '.join(result['installed'])}")
+                        if result["skipped"]:
+                            ui.console.print(f"  ⊘ Already installed: {', '.join(result['skipped'])}")
+                    else:
+                        ui.console.print(f"  [yellow]Warning: {result.get('error', 'Unknown error')}[/yellow]")
+            except Exception as e:
+                ui.console.print(f"  [yellow]Warning: Could not install git hooks: {e}[/yellow]")
+
         # Show next steps
         ui.console.print("\n[bold cyan]🎉 Project initialized successfully![/bold cyan]\n")
         ui.console.print("[bold]Next steps:[/bold]")
@@ -1197,6 +1316,114 @@ context_files:
             content += f"- **Complexity**: {analysis.complexity.title()}\n"
 
     return content
+
+
+@register_command(
+    name="hooks",
+    description="Manage git hooks for automatic context updates",
+    usage="/hooks [install|uninstall|list]",
+    aliases=[],
+    category="config",
+    detailed_help="Manage git hooks:\n"
+    "- /hooks or /hooks list - Show installed hooks\n"
+    "- /hooks install - Install git hooks\n"
+    "- /hooks uninstall - Remove git hooks",
+)
+def handle_hooks(command: str, **kwargs) -> bool:
+    """Handle /hooks command."""
+    ui = kwargs.get("ui")
+    if not ui:
+        return True
+
+    from pathlib import Path
+
+    from agent_cli.git_hooks import GitHooksManager
+
+    # Parse subcommand
+    parts = command.split()
+    subcommand = parts[1].lower() if len(parts) > 1 else "list"
+
+    manager = GitHooksManager(Path.cwd())
+
+    try:
+        if not manager.is_git_repo():
+            ui.print_error("Not a git repository")
+            return True
+
+        if subcommand in ["list", "status"]:
+            # List hooks
+            result = manager.list_hooks()
+
+            ui.console.print("\n[bold]Git Hooks Status[/bold]\n")
+
+            if result["agent_hooks"]:
+                ui.console.print("[green]✓ Agent CLI Hooks:[/green]")
+                for hook in result["agent_hooks"]:
+                    ui.console.print(f"  • {hook}")
+            else:
+                ui.console.print("[dim]No Agent CLI hooks installed[/dim]")
+
+            if result["other_hooks"]:
+                ui.console.print("\n[dim]Other Hooks:[/dim]")
+                for hook in result["other_hooks"]:
+                    ui.console.print(f"  • {hook}")
+
+            ui.console.print()
+
+        elif subcommand == "install":
+            # Install hooks
+            ui.console.print("[cyan]Installing git hooks...[/cyan]\n")
+
+            result = manager.install_hooks()
+
+            if result["success"]:
+                if result["installed"]:
+                    ui.console.print("[green]✓ Installed:[/green]")
+                    for hook in result["installed"]:
+                        ui.console.print(f"  • {hook}")
+
+                if result["skipped"]:
+                    ui.console.print("\n[dim]Already installed:[/dim]")
+                    for hook in result["skipped"]:
+                        ui.console.print(f"  • {hook}")
+
+                ui.print_success("\nGit hooks installed successfully")
+            else:
+                ui.print_error("Failed to install git hooks")
+                for error in result.get("errors", []):
+                    ui.console.print(f"  [red]✗[/red] {error}")
+
+        elif subcommand == "uninstall":
+            # Uninstall hooks
+            ui.console.print("[cyan]Uninstalling git hooks...[/cyan]\n")
+
+            result = manager.uninstall_hooks()
+
+            if result["success"]:
+                if result["removed"]:
+                    ui.console.print("[green]✓ Removed:[/green]")
+                    for hook in result["removed"]:
+                        ui.console.print(f"  • {hook}")
+                else:
+                    ui.console.print("[dim]No Agent CLI hooks to remove[/dim]")
+
+                ui.print_success("\nGit hooks uninstalled successfully")
+            else:
+                ui.print_error("Failed to uninstall git hooks")
+                for error in result.get("errors", []):
+                    ui.console.print(f"  [red]✗[/red] {error}")
+
+        else:
+            ui.print_error(f"Unknown subcommand: {subcommand}")
+            ui.console.print("\nUsage:")
+            ui.console.print("  /hooks [list] - Show installed hooks")
+            ui.console.print("  /hooks install - Install git hooks")
+            ui.console.print("  /hooks uninstall - Remove git hooks")
+
+    except Exception as e:
+        ui.print_error(f"Hooks error: {e}")
+
+    return True
 
 
 @register_command(

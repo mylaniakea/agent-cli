@@ -604,9 +604,27 @@ When generating code:
         Returns:
             Best matching template or None
         """
-        # Check for framework-specific templates
+        # Special mappings for frameworks that don't match template IDs directly
+        framework_mappings = {
+            "express": "nodejs-backend",
+            "nest.js": "nodejs-backend",
+            "nestjs": "nodejs-backend",
+            "next.js": "web-nextjs",
+            "nextjs": "web-nextjs",
+            "react-native": "mobile-react-native",
+        }
+
+        # Check for framework-specific templates with mappings
         for framework in frameworks:
             framework_lower = framework.lower().replace('.', '').replace('-', '')
+
+            # Check direct mapping
+            if framework_lower in framework_mappings:
+                mapped_id = framework_mappings[framework_lower]
+                if mapped_id in self.templates:
+                    return self.templates[mapped_id]
+
+            # Check template ID matching
             for template_id, template in self.templates.items():
                 template_id_clean = template_id.lower().replace('.', '').replace('-', '')
                 if framework_lower in template_id_clean:
