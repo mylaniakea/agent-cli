@@ -1105,17 +1105,8 @@ class InteractiveSession:
                 completions = list(self.slash_completer.get_completions(doc, event))
                 
                 if completions:
-                    # Transform completions into (cmd, desc) tuples for menu
-                    menu_items = []
-                    for c in completions:
-                        # Extract description from display_meta
-                        # display_meta might be None
-                        desc = c.display_meta if c.display_meta else ""
-                        # Use completion.text or display for command
-                        cmd = c.display
-                        menu_items.append((cmd, desc))
-                    
-                    self.command_menu.show(menu_items)
+                    # Pass full completion objects to menu directly
+                    self.command_menu.show(completions)
                     app.invalidate()
                 else:
                     self.command_menu.hide()
