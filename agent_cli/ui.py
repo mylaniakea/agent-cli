@@ -989,7 +989,13 @@ class InteractiveSession:
             height=calculate_menu_height,
         )
 
-        # Build prompt box layout (Fixed height: 3 lines)
+        # Build prompt box layout (Fixed height: 3 lines + spacer)
+        # Spacer to reserve space for floating menu (prevent clipping)
+        spacer_window = Window(
+            content=FormattedTextControl(text=""),
+            height=calculate_menu_height,
+        )
+
         prompt_box = HSplit(
             [
                 # Top border
@@ -1022,6 +1028,8 @@ class InteractiveSession:
                     content=FormattedTextControl(text=[("class:border", bottom_border)]),
                     height=1,
                 ),
+                # Reserve space for float
+                spacer_window,
             ]
         )
 
