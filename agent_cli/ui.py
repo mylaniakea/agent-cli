@@ -11,6 +11,7 @@ from typing import Any
 from prompt_toolkit import Application, PromptSession
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import ConditionalContainer, Float, FloatContainer, HSplit, Layout, VSplit, Window
 from prompt_toolkit.filters import Condition
@@ -674,12 +675,16 @@ class InteractiveSession:
 
         # Create custom command menu for pop-out display
         self.command_menu = InteractiveSession.CommandMenu(self)
+        
+        # Initialize auto-suggest
+        self.auto_suggest = AutoSuggestFromHistory()
 
         # Note: PromptSession will show completion menu automatically when configured
         # The MULTI_COLUMN style should display completions in a table format
         self.session = PromptSession(
             completer=self.slash_completer,
             style=self.ui.theme_manager.get_current_style_for_prompt(),
+            auto_suggest=self.auto_suggest,
             complete_while_typing=True,
             complete_in_thread=True,
             complete_style=None,  # Disable native menu to use custom CommandMenu
@@ -933,6 +938,8 @@ class InteractiveSession:
         buffer = Buffer(
             completer=self.slash_completer,
             complete_while_typing=True,
+            history=self.session.history,
+            auto_suggest=self.auto_suggest,
         )
 
         # Get theme colors for menu
@@ -1095,17 +1102,21 @@ class InteractiveSession:
 
         @kb.add("up")
         def _(event):
-            """Move up in menu if visible."""
+            """Move up in menu if visible, else history search."""
             if self.command_menu.visible:
                 self.command_menu.move_up()
                 event.app.invalidate()
+            else:
+                event.current_buffer.auto_up()
 
         @kb.add("down")
         def _(event):
-            """Move down in menu if visible."""
+            """Move down in menu if visible, else history search."""
             if self.command_menu.visible:
                 self.command_menu.move_down()
                 event.app.invalidate()
+            else:
+                event.current_buffer.auto_down()
 
         @kb.add("c-c")
         def _(event):
@@ -1113,13 +1124,18 @@ class InteractiveSession:
 
         @kb.add("tab")
         def _(event):
-            """Handle tab - cycle down in menu if visible."""
+            """Handle tab - cycle down in menu if visible, else trigger or indent."""
             if self.command_menu.visible:
                 self.command_menu.move_down()
                 event.app.invalidate()
             else:
-                # Normal tab behavior (indent)
-                event.current_buffer.insert_text("    ")
+                b = event.current_buffer
+                # If looking like a command, try to trigger menu
+                if b.text.lstrip().startswith("/"):
+                     self._on_text_changed(b, event.app)
+                else:
+                    # Normal tab behavior (indent)
+                    event.current_buffer.insert_text("    ")
 
         @kb.add("s-tab")
         def _(event):
