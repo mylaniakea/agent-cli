@@ -377,7 +377,8 @@ class InteractiveSession:
     class CommandMenu:
         """Custom pop-out menu for showing all commands at once."""
 
-        def __init__(self):
+        def __init__(self, session):
+            self.session = session  # Access to session.ui
             self.visible = False
             self.selected_index = 0
             self.items = []  # List of Completion objects
@@ -421,48 +422,59 @@ class InteractiveSession:
             return None
 
         def render(self):
-            """Render menu as formatted text in spreadsheet style."""
+            """Render menu as formatted text matching the active theme."""
             if not self.visible or not self.items:
                 return []
+
+            # Get theme styles
+            ui = self.session.ui
+            theme_data = ui.theme_manager.current_theme_data
+            
+            # Colors
+            border_color = theme_data.get("prompt.border", "#888888")
+            bg_color = "#1e1e1e" # Default dark bg
+            text_color = theme_data.get("prompt.text", "#ffffff")
+            selected_bg = theme_data.get("panel.border", "#4a9eff") # Use accent color
+            selected_text = "#000000" if "white" in text_color or "#f" in text_color else "#ffffff"
+            desc_color = "#888888"
+
+            # Parse colors if they contain "bold" or "on"
+            def clean_color(c):
+                if " " in c: return c.split()[-1]
+                return c
+            
+            border_color = clean_color(border_color)
+            selected_bg = clean_color(selected_bg)
 
             lines = []
             # Calculate view window
             start_idx = self.scroll_offset
             end_idx = min(len(self.items), start_idx + self.max_rows)
             
-            # Top border with title
-            lines.append(("class:menu.border", "╔══════════════════╦══════════════════════════════════════════════╗\n"))
-            lines.append(("class:menu.border", "║ "))
-            lines.append(("class:menu.title", "Option           "))
-            lines.append(("class:menu.border", "║ "))
-            lines.append(("class:menu.title", "Description                                  "))
-            lines.append(("class:menu.border", "║\n"))
-            lines.append(("class:menu.border", "╠══════════════════╬══════════════════════════════════════════════╣\n"))
+            # Border chars
+            tl, tr, bl, br = "╭", "╮", "╰", "╯"
+            h, v = "─", "│"
+            
+            width = 70 # Fixed width
+            
+            # Top Border
+            lines.append((f"fg:{border_color}", f"{tl}{h * (width-2)}{tr}\n"))
 
-            # Commands with horizontal separators (only visible ones)
             visible_items = self.items[start_idx:end_idx]
             
             for i, item in enumerate(visible_items):
-                # Calculate real index
                 real_idx = start_idx + i
                 
                 try:
                     from prompt_toolkit.formatted_text import to_plain_text
-                    
                     d_val = item.display
-                    if isinstance(d_val, list): 
-                         cmd = to_plain_text(d_val)
-                    else:
-                         cmd = str(d_val)
+                    cmd = to_plain_text(d_val) if isinstance(d_val, list) else str(d_val)
                     
                     dm_val = item.display_meta
-                    if isinstance(dm_val, list):
-                         desc = to_plain_text(dm_val)
-                    else:
-                         desc = str(dm_val) if dm_val else ""
+                    desc = to_plain_text(dm_val) if isinstance(dm_val, list) else (str(dm_val) if dm_val else "")
                     
                     # Truncate
-                    cmd = cmd[:15]
+                    cmd = cmd[:18]
                     desc = desc[:45]
                 except Exception:
                     cmd = "Error"
@@ -470,36 +482,33 @@ class InteractiveSession:
 
                 is_selected = real_idx == self.selected_index
 
+                # Row Content
+                row_text = f" {cmd:<20} {desc:<45}"
+                # Pad to width-2 (borders)
+                padding = width - 2 - len(row_text)
+                row_text += " " * max(0, padding)
+                row_text = row_text[:width-2] # Ensure no overflow
+
+                lines.append((f"fg:{border_color}", f"{v}"))
+                
                 if is_selected:
-                    lines.append(("class:menu.selected", "║ "))
-                    lines.append(("class:menu.selected", f"▶ {cmd:<15} "))
-                    lines.append(("class:menu.selected", "║ "))
-                    lines.append(("class:menu.selected.desc", f"{desc:<45}"))
-                    lines.append(("class:menu.selected", "║\n"))
+                    lines.append((f"bg:{selected_bg} fg:{selected_text} bold", row_text))
                 else:
-                    lines.append(("class:menu.border", "║ "))
-                    lines.append(("class:menu.normal", f"  {cmd:<15} "))
-                    lines.append(("class:menu.border", "║ "))
-                    lines.append(("class:menu.desc", f"{desc:<45}"))
-                    lines.append(("class:menu.border", "║\n"))
+                    lines.append((f"fg:{text_color}", row_text))
+                
+                lines.append((f"fg:{border_color}", f"{v}\n"))
 
-                # Add horizontal separator between rows (except last in view)
-                if i < len(visible_items) - 1:
-                    if is_selected or (real_idx + 1 == self.selected_index):
-                        lines.append(("class:menu.selected", "╟──────────────────╫──────────────────────────────────────────────╢\n"))
-                    else:
-                        lines.append(("class:menu.separator", "╟──────────────────╫──────────────────────────────────────────────╢\n"))
-
-            # Bottom border with instructions
-            lines.append(("class:menu.border", "╚══════════════════╩══════════════════════════════════════════════╝\n"))
-            
-            # Show scroll info if needed
+            # Bottom Border
+            # Add scroll indicator if needed in bottom border
             total = len(self.items)
             if total > self.max_rows:
-                info = f" {start_idx+1}-{end_idx} of {total} "
-                lines.append(("class:menu.instructions", f"  ↑↓ navigate  │  TAB/ENTER select  │  ESC cancel │{info}"))
+                info = f" {start_idx+1}-{end_idx}/{total} "
+                remaining_len = width - 2 - len(info)
+                half_len = remaining_len // 2
+                border_str = f"{h * half_len}{info}{h * (remaining_len - half_len)}"
+                lines.append((f"fg:{border_color}", f"{bl}{border_str}{br}"))
             else:
-                lines.append(("class:menu.instructions", "  ↑↓ navigate  │  TAB/ENTER select  │  ESC cancel  "))
+                lines.append((f"fg:{border_color}", f"{bl}{h * (width-2)}{br}"))
 
             return lines
 
@@ -664,7 +673,7 @@ class InteractiveSession:
         )
 
         # Create custom command menu for pop-out display
-        self.command_menu = InteractiveSession.CommandMenu()
+        self.command_menu = InteractiveSession.CommandMenu(self)
 
         # Note: PromptSession will show completion menu automatically when configured
         # The MULTI_COLUMN style should display completions in a table format
@@ -960,23 +969,21 @@ class InteractiveSession:
 
         # Create a window for the custom menu
         def calculate_menu_height():
-            """Calculate height for spreadsheet menu with separators."""
+            """Calculate height for menu."""
             if not self.command_menu.visible:
                 return 0
-            # Top border (1) + Header (2) + Commands + Separators + Bottom (1) + Instructions (1)
-            # Each command = 1 line, separator between = commands - 1
-            # Cap at max_rows
+            # Top (1) + Items + Bottom (1)
             num_rows = min(len(self.command_menu.items), self.command_menu.max_rows)
-            return 1 + 2 + num_rows + (num_rows - 1 if num_rows > 1 else 0) + 1 + 1
+            return 1 + num_rows + 1
 
         menu_window = Window(
             content=FormattedTextControl(lambda: self.command_menu.render()),
-            width=70,  # Fixed width for spreadsheet
+            width=70,  # Fixed width
             height=calculate_menu_height,
         )
 
-        # Build layout with borders
-        root_container = HSplit(
+        # Build prompt box layout (Fixed height: 3 lines)
+        prompt_box = HSplit(
             [
                 # Top border
                 Window(
@@ -1008,11 +1015,42 @@ class InteractiveSession:
                     content=FormattedTextControl(text=[("class:border", bottom_border)]),
                     height=1,
                 ),
-                # Custom menu below the prompt box (Conditional)
-                ConditionalContainer(
+            ]
+        )
+
+        # Use FloatContainer to overlay menu without breaking layout
+        root_container = FloatContainer(
+            content=prompt_box,
+            floats=[
+                Float(
                     content=menu_window,
-                    filter=Condition(lambda: self.command_menu.visible),
-                ),
+                    top=3, # Position below the 3-line prompt box
+                    left=0,
+                    hide_when_covering_content=False,
+                )
+            ]
+        )
+        
+        # Only show float when menu is visible
+        # Note: We can't attach Condition directly to Float, so we make the Window conditional
+        # or use a ConditionalContainer inside the Float content.
+        # Let's wrap menu_window in ConditionalContainer for safety
+        
+        menu_container = ConditionalContainer(
+            content=menu_window,
+            filter=Condition(lambda: self.command_menu.visible)
+        )
+        
+        # Re-create FloatContainer with conditional content
+        root_container = FloatContainer(
+            content=prompt_box,
+            floats=[
+                Float(
+                    content=menu_container,
+                    top=3, # Position below the 3-line prompt box
+                    left=2, # Indent slightly to align with prompt text
+                    hide_when_covering_content=False,
+                )
             ]
         )
 
