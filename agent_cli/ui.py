@@ -427,26 +427,6 @@ class InteractiveSession:
             if not self.visible or not self.items:
                 return []
 
-            # Get theme styles
-            ui = self.session.ui
-            theme_data = ui.theme_manager.current_theme_data
-            
-            # Colors
-            border_color = theme_data.get("prompt.border", "#888888")
-            bg_color = "#1e1e1e" # Default dark bg
-            text_color = theme_data.get("prompt.text", "#ffffff")
-            selected_bg = theme_data.get("panel.border", "#4a9eff") # Use accent color
-            selected_text = "#000000" if "white" in text_color or "#f" in text_color else "#ffffff"
-            desc_color = "#888888"
-
-            # Parse colors if they contain "bold" or "on"
-            def clean_color(c):
-                if " " in c: return c.split()[-1]
-                return c
-            
-            border_color = clean_color(border_color)
-            selected_bg = clean_color(selected_bg)
-
             lines = []
             # Calculate view window
             start_idx = self.scroll_offset
@@ -459,7 +439,7 @@ class InteractiveSession:
             width = 70 # Fixed width
             
             # Top Border
-            lines.append((f"fg:{border_color}", f"{tl}{h * (width-2)}{tr}\n"))
+            lines.append(("class:menu.border", f"{tl}{h * (width-2)}{tr}\n"))
 
             visible_items = self.items[start_idx:end_idx]
             
@@ -490,14 +470,14 @@ class InteractiveSession:
                 row_text += " " * max(0, padding)
                 row_text = row_text[:width-2] # Ensure no overflow
 
-                lines.append((f"fg:{border_color}", f"{v}"))
+                lines.append(("class:menu.border", f"{v}"))
                 
                 if is_selected:
-                    lines.append((f"bg:{selected_bg} fg:{selected_text} bold", row_text))
+                    lines.append(("class:menu.selected", row_text))
                 else:
-                    lines.append((f"fg:{text_color}", row_text))
+                    lines.append(("class:menu.normal", row_text))
                 
-                lines.append((f"fg:{border_color}", f"{v}\n"))
+                lines.append(("class:menu.border", f"{v}\n"))
 
             # Bottom Border
             # Add scroll indicator if needed in bottom border
@@ -507,9 +487,9 @@ class InteractiveSession:
                 remaining_len = width - 2 - len(info)
                 half_len = remaining_len // 2
                 border_str = f"{h * half_len}{info}{h * (remaining_len - half_len)}"
-                lines.append((f"fg:{border_color}", f"{bl}{border_str}{br}"))
+                lines.append(("class:menu.border", f"{bl}{border_str}{br}"))
             else:
-                lines.append((f"fg:{border_color}", f"{bl}{h * (width-2)}{br}"))
+                lines.append(("class:menu.border", f"{bl}{h * (width-2)}{br}"))
 
             return lines
 
