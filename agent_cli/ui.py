@@ -1039,7 +1039,8 @@ class InteractiveSession:
             floats=[
                 Float(
                     content=menu_window,
-                    top=3, # Position below the 3-line prompt box
+                    attach_to_window=spacer_window,
+                    top=0,
                     left=0,
                     hide_when_covering_content=False,
                 )
@@ -1173,33 +1174,39 @@ class InteractiveSession:
 
     def _on_text_changed(self, buffer, app):
         """Show custom menu when user types '/'."""
-        text = buffer.text
-        
-        # Only trigger for commands starting with /
-        if text.startswith("/"):
-            # Manually get completions from our completer
-            # We create a dummy document and event
-            from prompt_toolkit.document import Document
-            from prompt_toolkit.completion import CompleteEvent
+        try:
+            text = buffer.text
             
-            doc = Document(text, cursor_position=len(text))
-            # Fix: CompleteEvent assertion fails if both are True.
-            # Since we are in on_text_changed, text was inserted.
-            event = CompleteEvent(text_inserted=True, completion_requested=False)
-            
-            completions = list(self.slash_completer.get_completions(doc, event))
-            
-            if completions:
-                # Pass full completion objects to menu directly
-                self.command_menu.show(completions)
-                app.invalidate()
+            # Only trigger for commands starting with /
+            if text.startswith("/"):
+                # Manually get completions from our completer
+                # We create a dummy document and event
+                from prompt_toolkit.document import Document
+                from prompt_toolkit.completion import CompleteEvent
+                
+                doc = Document(text, cursor_position=len(text))
+                # Fix: CompleteEvent assertion fails if both are True.
+                # Since we are in on_text_changed, text was inserted.
+                event = CompleteEvent(text_inserted=True, completion_requested=False)
+                
+                completions = list(self.slash_completer.get_completions(doc, event))
+                
+                if completions:
+                    # Pass full completion objects to menu directly
+                    self.command_menu.show(completions)
+                    app.invalidate()
+                else:
+                    self.command_menu.hide()
+                    app.invalidate()
             else:
-                self.command_menu.hide()
-                app.invalidate()
-        else:
-            if self.command_menu.visible:
-                self.command_menu.hide()
-                app.invalidate()
+                if self.command_menu.visible:
+                    self.command_menu.hide()
+                    app.invalidate()
+        except Exception as e:
+            # Prevent crash on typing
+            import traceback
+            with open("ui_error.log", "a") as f:
+                f.write(f"Error in _on_text_changed: {e}\n{traceback.format_exc()}\n")
 
 
 class UI:
