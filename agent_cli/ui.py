@@ -432,14 +432,36 @@ class InteractiveSession:
             start_idx = self.scroll_offset
             end_idx = min(len(self.items), start_idx + self.max_rows)
             
-            # Border chars
+            width = 70 # Fixed width
+            col1_width = 18
+            col2_width = width - col1_width - 3 # 3 for borders (│...│...│)
+            
+            # Border chars (Double line top/bottom for "spreadsheet" feel?) 
+            # Or Single line for cleaner CLI look. Let's stick to single line consistent with prompt box.
+            # Top: ┌─┬─┐
+            # Mid: ├─┼─┤
+            # Bot: └─┴─┘
             tl, tr, bl, br = "╭", "╮", "╰", "╯"
             h, v = "─", "│"
-            
-            width = 70 # Fixed width
+            tm, bm, ml, mr, mm = "┬", "┴", "├", "┤", "┼"
             
             # Top Border
-            lines.append(("class:menu.border", f"{tl}{h * (width-2)}{tr}\n"))
+            border_top = f"{tl}{h * col1_width}{tm}{h * col2_width}{tr}\n"
+            lines.append(("class:menu.border", border_top))
+            
+            # Header
+            header_1 = f" Option".ljust(col1_width)
+            header_2 = f" Description".ljust(col2_width)
+            
+            lines.append(("class:menu.border", v))
+            lines.append(("class:menu.title", header_1))
+            lines.append(("class:menu.border", v))
+            lines.append(("class:menu.title", header_2))
+            lines.append(("class:menu.border", f"{v}\n"))
+            
+            # Header Separator
+            sep = f"{ml}{h * col1_width}{mm}{h * col2_width}{mr}\n"
+            lines.append(("class:menu.border", sep))
 
             visible_items = self.items[start_idx:end_idx]
             
@@ -455,28 +477,26 @@ class InteractiveSession:
                     desc = to_plain_text(dm_val) if isinstance(dm_val, list) else (str(dm_val) if dm_val else "")
                     
                     # Truncate
-                    cmd = cmd[:18]
-                    desc = desc[:45]
+                    cmd = cmd[:col1_width-1]
+                    desc = desc[:col2_width-1]
                 except Exception:
                     cmd = "Error"
                     desc = ""
 
                 is_selected = real_idx == self.selected_index
-
-                # Row Content
-                row_text = f" {cmd:<20} {desc:<45}"
-                # Pad to width-2 (borders)
-                padding = width - 2 - len(row_text)
-                row_text += " " * max(0, padding)
-                row_text = row_text[:width-2] # Ensure no overflow
-
-                lines.append(("class:menu.border", f"{v}"))
                 
-                if is_selected:
-                    lines.append(("class:menu.selected", row_text))
-                else:
-                    lines.append(("class:menu.normal", row_text))
+                # Content padding
+                cmd_txt = f" {cmd}".ljust(col1_width)
+                desc_txt = f" {desc}".ljust(col2_width)
+
+                style = "class:menu.selected" if is_selected else "class:menu.normal"
                 
+                lines.append(("class:menu.border", v))
+                lines.append((style, cmd_txt))
+                lines.append(("class:menu.border", v))
+                # Use menu.desc style for description if not selected
+                desc_style = "class:menu.selected" if is_selected else "class:menu.desc"
+                lines.append((desc_style, desc_txt))
                 lines.append(("class:menu.border", f"{v}\n"))
 
             # Bottom Border
@@ -484,12 +504,24 @@ class InteractiveSession:
             total = len(self.items)
             if total > self.max_rows:
                 info = f" {start_idx+1}-{end_idx}/{total} "
-                remaining_len = width - 2 - len(info)
-                half_len = remaining_len // 2
-                border_str = f"{h * half_len}{info}{h * (remaining_len - half_len)}"
-                lines.append(("class:menu.border", f"{bl}{border_str}{br}"))
+                # Center info in the whole bottom line or just second column?
+                # Let's put it in the bottom border of second column
+                
+                # Reconstruct bottom border part 2 with text
+                part2_len = col2_width
+                info_len = len(info)
+                if info_len < part2_len:
+                    rem = part2_len - info_len
+                    half = rem // 2
+                    part2_str = f"{h*half}{info}{h*(rem-half)}"
+                else:
+                    part2_str = h * part2_len
+                    
+                border_bot = f"{bl}{h * col1_width}{bm}{part2_str}{br}"
+                lines.append(("class:menu.border", border_bot))
             else:
-                lines.append(("class:menu.border", f"{bl}{h * (width-2)}{br}"))
+                border_bot = f"{bl}{h * col1_width}{bm}{h * col2_width}{br}"
+                lines.append(("class:menu.border", border_bot))
 
             return lines
 
@@ -942,14 +974,14 @@ class InteractiveSession:
                 "border": border_color,
                 "prompt": "bold",
                 # Custom command menu styles (spreadsheet table)
-                "menu.border": f"{menu_border}",  # Border lines
-                "menu.title": f"bold {menu_highlight_bg}",  # Header row
-                "menu.normal": f"{menu_text}",  # Normal command text
-                "menu.desc": f"{menu_desc}",  # Description text
-                "menu.selected": f"bg:{menu_highlight_bg} {menu_highlight_text} bold",  # Selected row
-                "menu.selected.desc": f"bg:{menu_highlight_bg} {menu_highlight_text}",  # Selected description
-                "menu.separator": f"{menu_border}",  # Row separators
-                "menu.instructions": f"{menu_desc}",  # Bottom instructions
+                "menu.border": f"{menu_border} bg:default",  # Border lines
+                "menu.title": f"bold {menu_text} bg:default",  # Header row
+                "menu.normal": f"{menu_text} bg:default",  # Normal command text
+                "menu.desc": f"{menu_desc} bg:default",  # Description text
+                "menu.selected": "reverse",  # Selected row (reverse video)
+                "menu.selected.desc": "reverse",  # Selected description
+                "menu.separator": f"{menu_border} bg:default",  # Row separators
+                "menu.instructions": f"{menu_desc} bg:default",  # Bottom instructions
             }
         )
         final_style = merge_styles([self.session.style, custom_style])
